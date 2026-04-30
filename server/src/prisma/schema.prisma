@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TokenType {
+  refreshJwtToken
+  emailChange
+  passwordChange
+}
+
+model User {
+  id                Int      @id @default(autoincrement())
+  login             String   @unique
+  username          String
+  email             String   @unique
+  password_hash     String?
+  google_id         String?  @unique
+  avatar_url        String   @default("default")
+  is_email_verified Boolean  @default(false)
+  created_at        DateTime @default(now())
+
+  tokens Token[]
+
+  @@index([email])
+  @@index([login])
+}
+
+model Token {
+  id         Int       @id @default(autoincrement())
+  type       TokenType
+  token      String    @unique
+  expires_at DateTime?
+  created_at DateTime  @default(now())
+
+  user    User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id Int
+
+  @@index([user_id, type])
+}
