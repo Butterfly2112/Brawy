@@ -10,14 +10,15 @@ function ConfirmEmailRedirect() {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from './store/auth';
 import { refreshSession } from './api/http';
+import "./main.css";
 import Login from './pages/Login';
 import Register from './pages/Register';
-import GoogleLogin from './pages/GoogleLogin';
+import GoogleLogin from './pages/GoogleLoginButton.tsx';
 import EmailConfirmed from './pages/EmailConfirmed';
 import ResetPasswordRequest from './pages/ResetPasswordRequest';
 import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 const queryClient = new QueryClient();
 
@@ -65,12 +66,6 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <div>
-          <nav style={{ marginBottom: 20 }}>
-            <Link to="/login"><button>Login</button></Link>
-            <Link to="/register"><button>Register</button></Link>
-            <Link to="/google-login"><button>Google Login</button></Link>
-            {user && <Link to="/home"><button>Home</button></Link>}
-          </nav>
           <Routes>
             {user ? (
               <>

@@ -2,12 +2,14 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { RegisterDto } from 'src/auth/dto/register.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 import { SafeUserDto } from 'src/auth/dto/auth-response.dto';
+import { UpdateUserDto } from './dto/update-user-dto';
 
 @Injectable()
 export class UserService {
@@ -102,6 +104,39 @@ export class UserService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+
+    return {
+      id: user.id,
+      login: user.login,
+      username: user.username,
+      email: user.email,
+      avatar_url: user.avatar_url,
+      created_at: user.created_at,
+    };
+  }
+
+  async update(userId: number, dto: UpdateUserDto): Promise<SafeUserDto> {
+    if (!userId) {
+      throw new BadRequestException('User ID is required');
+    }
+
+    if (dto.login) {
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          login: dto.login,
+          id: { not: userId },
+        },
+      });
+      if (existing) throw new ConflictException('Login already taken');
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.login && { login: dto.login }),
+        ...(dto.avatar_url && { avatar_url: dto.avatar_url }),
+      },
+    });
 
     return {
       id: user.id,

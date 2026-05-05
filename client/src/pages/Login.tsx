@@ -4,6 +4,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { login, refresh } from '../api/auth';
 import type { User } from '../api/types';
 import { useAuthStore } from '../store/auth';
+import Footer from '../components/Footer';
+import Header from '../components/Header';
+import GoogleLoginButton from './GoogleLoginButton';
 
 type GoogleTokenPayload = {
   sub?: number | string;
@@ -101,28 +104,58 @@ export default function Login() {
   });
 
   return (
-    <form onSubmit={e => { e.preventDefault(); mutation.mutate(); }}>
-      {isGoogleRedirect && <div>Signing in with Google...</div>}
-      <div>
-        <input
-          placeholder="Login or Email"
-          value={loginOrEmail}
-          onChange={e => setLoginOrEmail(e.target.value)}
-        />
+      <div className="app">
+        <Header />
+        <main className="login-page">
+          {/* ЛІВА ЧАСТИНА: Привітання та Фото */}
+          <div className="login-left">
+            <div className="welcome-content">
+              <h1>Welcome to Webster!</h1>
+              <p>Your ultimate creative platform for building web magic. Start your journey today!</p>
+            </div>
+          </div>
+
+          {/* ПРАВА ЧАСТИНА: Форма логіну */}
+          <div className="login-right">
+            <form className="login-form" onSubmit={e => { e.preventDefault(); mutation.mutate(); }}>
+              <h2>Sign In</h2>
+              {isGoogleRedirect && <div className="status-msg">Signing in with Google...</div>}
+
+              <div className="input-group">
+                <input
+                    placeholder="Login or Email"
+                    value={loginOrEmail}
+                    onChange={e => setLoginOrEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="input-group">
+                <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                />
+              </div>
+
+              <button type="submit" className="button-agree" disabled={mutation.isPending}>
+                {mutation.isPending ? 'Logging in...' : 'Login'}
+              </button>
+
+              <div className="divider">or</div>
+
+              <GoogleLoginButton text="Login with Google" />
+
+              <div className="form-footer">
+                <Link to="/reset-password-request">Forgot password?</Link>
+                <span>Don't have an account? <Link to="/register">Register</Link></span>
+              </div>
+
+              {error && <div className="error-msg">{error}</div>}
+            </form>
+          </div>
+        </main>
+        <Footer />
       </div>
-      <div>
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
-      </div>
-      <button type="submit" disabled={mutation.isPending}>Login</button>
-      <div>
-        <Link to="/reset-password-request">Forgot password?</Link>
-      </div>
-      {error && <div>{error}</div>}
-    </form>
   );
 }
