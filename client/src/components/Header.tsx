@@ -125,7 +125,7 @@ export default function Header() {
                 <div className="header-center">
                     <nav className="nav-links">
                         <Link to="/templates">Templates</Link>
-                        <Link to="/projects">My projects</Link>
+                        <Link to="/home">Projects</Link>
                     </nav>
                 </div>
 

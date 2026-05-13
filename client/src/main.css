@@ -843,3 +843,54 @@ a {
 .prop-group input[type="range"]:focus {
     outline: none;
 }
+
+/* Базові стилі для повзунка */
+.prop-group input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    background: #e2e8f0; /* Світло-сірий трек */
+    height: 6px;
+    border-radius: 10px;
+    outline: none;
+    margin: 10px 0;
+}
+
+/* Стилізація кружечка (Thumb) */
+.prop-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    margin-top: -5px; /* Вирівнювання по центру треку */
+    background-color: var(--secondary-color);
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.prop-group input[type="range"]:hover::-webkit-slider-thumb {
+    background-color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.prop-group input[type="range"]:active::-webkit-slider-thumb {
+    transform: scale(0.9);
+}
+
+.filter-grayscale { filter: grayscale(100%); }
+.filter-sepia { filter: sepia(100%); }
+.filter-invert { filter: invert(100%); }
+.filter-blur { filter: blur(2px); }
+.filter-bright { filter: brightness(150%); }
+
+.filters-dropdown-container {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.filter-preview-box:hover {
+    opacity: 0.8;
+}

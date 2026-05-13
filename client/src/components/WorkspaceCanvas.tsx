@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Stage, Layer, Image as KonvaImage, Transformer, Text as KonvaText, Rect, Ellipse, RegularPolygon, Star, Line } from 'react-konva';
+import Konva from 'konva';
+import { Stage, Layer, Image as KonvaImage, Transformer, Text as KonvaText, Rect, Ellipse, RegularPolygon, Star, Line, Arrow } from 'react-konva';
 
 const useImageSource = (url: string) => {
     const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
@@ -17,19 +18,65 @@ const URLImage = ({ imageInfo, onSelect, onChange }: { imageInfo: any, isSelecte
     const [image] = useImageSource(imageInfo.src);
     const imageRef = useRef<any>(null);
 
+    useEffect(() => {
+        if (image && imageRef.current) {
+            imageRef.current.clearCache();
+
+            imageRef.current.cache();
+
+            const layer = imageRef.current.getLayer();
+            if (layer) layer.batchDraw();
+        }
+    }, [image, imageInfo.filter, imageInfo.width, imageInfo.height]);
+
+    const getFilters = () => {
+        if (!imageInfo.filter) return [];
+        const filtersMap: Record<string, any> = {
+            'Grayscale': Konva.Filters.Grayscale,
+            'Sepia': Konva.Filters.Sepia,
+            'Invert': Konva.Filters.Invert,
+            'Blur': Konva.Filters.Blur,
+            'Brighten': Konva.Filters.Brighten,
+        };
+        const selectedFilter = filtersMap[imageInfo.filter];
+        return selectedFilter ? [selectedFilter] : [];
+    };
+
     return (
         <KonvaImage
-            id={imageInfo.id} ref={imageRef} image={image} x={imageInfo.x} y={imageInfo.y}
-            width={imageInfo.width || 100} height={imageInfo.height || 100} draggable
-            onClick={onSelect} onTap={onSelect}
+            id={imageInfo.id}
+            ref={imageRef}
+            image={image}
+            x={imageInfo.x}
+            y={imageInfo.y}
+            width={imageInfo.width || 100}
+            height={imageInfo.height || 100}
+            draggable
+            filters={getFilters()}
+            blurRadius={imageInfo.filter === 'Blur' ? 10 : 0}
+            brightness={imageInfo.filter === 'Brighten' ? 0.5 : 0}
+
+            onClick={onSelect}
+            onTap={onSelect}
             onDragEnd={(e) => onChange({ ...imageInfo, x: e.target.x(), y: e.target.y() })}
             onTransformEnd={(e) => {
                 const node = e.target;
+                const newWidth = Math.max(5, node.width() * node.scaleX());
+                const newHeight = Math.max(5, node.height() * node.scaleY());
+
+                node.scaleX(1);
+                node.scaleY(1);
+
                 onChange({
-                    ...imageInfo, x: node.x(), y: node.y(),
-                    width: Math.max(5, node.width() * node.scaleX()), height: Math.max(5, node.height() * node.scaleY()),
+                    ...imageInfo,
+                    x: node.x(),
+                    y: node.y(),
+                    width: newWidth,
+                    height: newHeight,
                 });
-                node.scaleX(1); node.scaleY(1);
+
+                node.clearCache();
+                node.cache();
             }}
         />
     );
@@ -39,19 +86,35 @@ const EditableText = ({ textInfo, isEditing, onSelect, onDoubleClick, onChange }
     const textRef = useRef<any>(null);
     return (
         <KonvaText
-            id={textInfo.id} ref={textRef} text={textInfo.text} x={textInfo.x} y={textInfo.y}
-            fontSize={textInfo.fontSize || 32} fill={textInfo.fill || '#000000'} width={textInfo.width}
-            fontStyle={textInfo.fontStyle || 'normal'} textDecoration={textInfo.textDecoration || ''} align={textInfo.align || 'left'}
-            draggable={!isEditing} opacity={isEditing ? 0 : 1}
-            onClick={onSelect} onTap={onSelect} onDblClick={onDoubleClick} onDblTap={onDoubleClick}
+            id={textInfo.id}
+            ref={textRef}
+            text={textInfo.text}
+            x={textInfo.x}
+            y={textInfo.y}
+            fontSize={textInfo.fontSize || 32}
+            fill={textInfo.fill || '#000000'}
+            width={textInfo.width}
+            fontFamily={textInfo.fontFamily || 'Arial'}
+            fontStyle={textInfo.fontStyle || 'normal'}
+            textDecoration={textInfo.textDecoration || ''}
+            align={textInfo.align || 'left'}
+            draggable={!isEditing}
+            opacity={isEditing ? 0 : 1}
+            onClick={onSelect}
+            onTap={onSelect}
+            onDblClick={onDoubleClick}
+            onDblTap={onDoubleClick}
             onDragEnd={(e) => onChange({ ...textInfo, x: e.target.x(), y: e.target.y() })}
             onTransformEnd={(e) => {
                 const node = e.target;
-                const scaleX = node.scaleX(); const scaleY = node.scaleY();
-                node.scaleX(1); node.scaleY(1);
+                const scaleX = node.scaleX();
+                const scaleY = node.scaleY();
+                node.scaleX(1);
+                node.scaleY(1);
                 onChange({
                     ...textInfo, x: node.x(), y: node.y(),
-                    fontSize: Math.max(10, (textInfo.fontSize || 32) * scaleY), width: Math.max(10, node.width() * scaleX),
+                    fontSize: Math.max(10, (textInfo.fontSize || 32) * scaleY),
+                    width: Math.max(10, node.width() * scaleX),
                 });
             }}
         />
@@ -120,20 +183,38 @@ const CanvasShape = ({ shapeInfo, onSelect, onChange }: { shapeInfo: any, isSele
 
 const CanvasLine = ({ lineInfo, onSelect }: { lineInfo: any, onSelect: () => void }) => {
     const isEraser = lineInfo.tool === 'eraser';
+    const isArrow = lineInfo.tool === 'arrow';
+
+    const commonProps = {
+        id: lineInfo.id,
+        points: lineInfo.points,
+        stroke: lineInfo.stroke,
+        strokeWidth: lineInfo.strokeWidth,
+        tension: lineInfo.tool === 'pen' ? 0.5 : 0,
+        lineCap: "round" as any,
+        lineJoin: "round" as any,
+        draggable: !isEraser,
+        listening: !isEraser,
+        onClick: onSelect,
+        onTap: onSelect,
+        dash: lineInfo.dash,
+    };
+
+    if (isArrow) {
+        return (
+            <Arrow
+                {...commonProps}
+                fill={lineInfo.stroke}
+                pointerLength={10}
+                pointerWidth={10}
+            />
+        );
+    }
+
     return (
         <Line
-            id={lineInfo.id}
-            points={lineInfo.points}
-            stroke={lineInfo.stroke}
-            strokeWidth={lineInfo.strokeWidth}
-            tension={lineInfo.tension ?? 0.5}
-            lineCap="round"
-            lineJoin="round"
+            {...commonProps}
             globalCompositeOperation={isEraser ? 'destination-out' : 'source-over'}
-            draggable={!isEraser}
-            listening={!isEraser}
-            onClick={onSelect}
-            onTap={onSelect}
         />
     );
 };
@@ -155,7 +236,6 @@ export default function WorkspaceCanvas({
         if (trRef.current) {
             if (mode !== 'draw' && selectedId && selectedId !== editingTextId) {
                 const selectedNode = stageRef.current.findOne('#' + selectedId);
-                // Забороняємо виділяти лінії рамочкою Transformer
                 if (selectedNode && selectedNode.className !== 'Line') {
                     trRef.current.nodes([selectedNode]);
                     trRef.current.getLayer().batchDraw();
@@ -168,33 +248,32 @@ export default function WorkspaceCanvas({
         }
     }, [selectedId, elements, editingTextId, mode]);
 
+
     const handleMouseDown = (e: any) => {
-        if (mode !== 'draw') {
-            if (e.target === e.target.getStage()) { setSelectedId(null); setEditingTextId(null); }
-            return;
-        }
+        if (mode !== 'draw') return;
+
+        const stage = e.target.getStage();
+        const pos = stage.getPointerPosition();
+
+        if (!pos) return;
 
         isDrawing.current = true;
-        const pos = e.target.getStage().getPointerPosition();
+
+        const currentTool = drawTool ?? 'pen';
+        const currentColor = drawColor ?? '#000000';
+        const currentSize = drawSize ?? 5;
 
         const newLine = {
             id: Date.now().toString(),
             type: 'line',
-            tool: drawTool,
-            points: [pos.x, pos.y],
-            // Гумка завжди має щільний колір (щоб пробивати дірку)
-            stroke: drawTool === 'eraser' ? '#000000' : drawColor,
-            strokeWidth: drawSize,
+            tool: currentTool,
+            points: ['line', 'arrow', 'dashed'].includes(currentTool)
+                ? [pos.x, pos.y, pos.x, pos.y]
+                : [pos.x, pos.y],
+            stroke: currentColor,
+            strokeWidth: currentSize,
+            dash: currentTool === 'dashed' ? [15, 10] : [],
         };
-
-        if (drawTool === 'marker') {
-            const hex = drawColor?.replace('#', '') || '000000';
-            const r = parseInt(hex.substring(0, 2), 16);
-            const g = parseInt(hex.substring(2, 4), 16);
-            const b = parseInt(hex.substring(4, 6), 16);
-            newLine.stroke = `rgba(${r},${g},${b},0.3)`;
-            (newLine as any).tension = 0;
-        }
 
         setElements([...elements, newLine]);
     };
@@ -207,7 +286,12 @@ export default function WorkspaceCanvas({
 
         setElements((prev: any[]) => {
             const lastLine = { ...prev[prev.length - 1] };
-            lastLine.points = lastLine.points.concat([point.x, point.y]);
+
+            if (['line', 'arrow', 'dashed'].includes(lastLine.tool)) {
+                lastLine.points = [lastLine.points[0], lastLine.points[1], point.x, point.y];
+            } else {
+                lastLine.points = lastLine.points.concat([point.x, point.y]);
+            }
 
             const newElements = [...prev];
             newElements[prev.length - 1] = lastLine;
@@ -255,7 +339,7 @@ export default function WorkspaceCanvas({
                         position: 'absolute', top: editingElement.y, left: editingElement.x, width: editingElement.width, height: editingElement.fontSize * 1.2 * editingElement.text.split('\n').length + 20,
                         fontSize: `${editingElement.fontSize}px`, color: editingElement.fill, fontWeight: editingElement.fontStyle?.includes('bold') ? 'bold' : 'normal',
                         fontStyle: editingElement.fontStyle?.includes('italic') ? 'italic' : 'normal', textDecoration: editingElement.textDecoration || 'none', textAlign: editingElement.align || 'left',
-                        border: '1px dashed black', padding: '0px', margin: '0px', background: 'transparent', outline: 'none', resize: 'none', lineHeight: 1.2, fontFamily: 'Arial', overflow: 'hidden', zIndex: 10,
+                        border: '1px dashed black', padding: '0px', margin: '0px', background: 'transparent', outline: 'none', resize: 'none', lineHeight: 1.2, fontFamily: editingElement.fontFamily || 'Arial', overflow: 'hidden', zIndex: 10,
                     }}
                 />
             )}

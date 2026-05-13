@@ -22,12 +22,27 @@ export default function Editor() {
 
     const [elements, setElements] = useState<any[]>([]);
 
+    const [showFiltersMenu, setShowFiltersMenu] = useState(false);
+
+    const FILTERS_LIST = [
+        { name: 'None', filter: null, previewClass: '' },
+        { name: 'Grayscale', filter: 'Grayscale', previewClass: 'filter-grayscale' },
+        { name: 'Sepia', filter: 'Sepia', previewClass: 'filter-sepia' },
+        { name: 'Invert', filter: 'Invert', previewClass: 'filter-invert' },
+        { name: 'Blur', filter: 'Blur', previewClass: 'filter-blur' },
+        { name: 'Bright', filter: 'Brighten', previewClass: 'filter-bright' },
+    ];
+
     const [showShapesMenu, setShowShapesMenu] = useState(false);
     const [showDrawMenu, setShowDrawMenu] = useState(false);
+    const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+    const [templateMessage, setTemplateMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
+
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const loadedProjectIdRef = useRef<number | null>(null);
 
     const [mode, setMode] = useState<'select' | 'draw'>('select');
-    const [drawTool, setDrawTool] = useState<'pen' | 'marker' | 'eraser'>('pen');
+    const [drawTool, setDrawTool] = useState<'pen' | 'marker' | 'eraser' | 'line' | 'arrow' | 'dashed'>('pen');
     const [drawColor, setDrawColor] = useState('#000000');
     const [drawSize, setDrawSize] = useState(5);
 
@@ -42,7 +57,8 @@ export default function Editor() {
     });
 
     useEffect(() => {
-        if (project) {
+        if (project && loadedProjectIdRef.current !== project.id) {
+
             setTitle(project.title || 'Untitled Design');
             if (project.width) setCanvasWidth(project.width);
             if (project.height) setCanvasHeight(project.height);
@@ -54,12 +70,14 @@ export default function Editor() {
             if (project.canvasData?.children) {
                 setElements(project.canvasData.children);
             }
+
+            loadedProjectIdRef.current = project.id;
         }
     }, [project]);
 
     const uploadAssetMutation = useMutation({
         mutationFn: async (formData: FormData) => {
-            const response = await customFetch(`/api/upload/image`, {
+            const response = await customFetch(`/api/project/${id}/assets`, {
                 method: 'POST',
                 body: formData,
             });
@@ -162,7 +180,7 @@ export default function Editor() {
 
     const saveMutation = useMutation({
         mutationFn: async (updateData: { title: string; width: number; height: number; bgColor: string; elements: any[] }) => {
-            let currentCanvasData = typeof project.canvasData === 'string'
+            const currentCanvasData = typeof project.canvasData === 'string'
                 ? JSON.parse(project.canvasData)
                 : JSON.parse(JSON.stringify(project?.canvasData || { className: 'Stage', attrs: {}, children: [] }));
 
@@ -193,6 +211,51 @@ export default function Editor() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['project', id] });
+        }
+    });
+
+    const saveAsTemplateMutation = useMutation({
+        mutationFn: async () => {
+            const currentCanvasData = typeof project.canvasData === 'string'
+                ? JSON.parse(project.canvasData)
+                : JSON.parse(JSON.stringify(project?.canvasData || { className: 'Stage', attrs: {}, children: [] }));
+
+            currentCanvasData.attrs = {
+                ...currentCanvasData.attrs,
+                backgroundColor: canvasBgColor
+            };
+
+            currentCanvasData.children = elements;
+
+            const response = await customFetch(`/api/project/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: title,
+                    width: canvasWidth,
+                    height: canvasHeight,
+                    canvasData: currentCanvasData,
+                    isTemplate: true
+                }),
+            });
+
+            if (!response.ok) throw new Error('Failed to save as template');
+            return response.json();
+        },
+        onSuccess: () => {
+            setTemplateMessage({ text: 'Successfully saved!', type: 'success' });
+            queryClient.invalidateQueries({ queryKey: ['project', id] });
+
+            setTimeout(() => {
+                setTemplateMessage(null);
+            }, 3000);
+        },
+        onError: () => {
+            setTemplateMessage({ text: 'Save error', type: 'error' });
+
+            setTimeout(() => {
+                setTemplateMessage(null);
+            }, 3000);
         }
     });
 
@@ -280,7 +343,7 @@ export default function Editor() {
                         </button>
 
                         {showDrawMenu && mode === 'draw' && isSidebarOpen && (
-                            <div style={{ display: 'flex', gap: '6px', padding: '10px 0', width: '100%', justifyContent: 'center', flexWrap: 'nowrap' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 36px)', gap: '6px', padding: '10px 0', width: '100%', justifyContent: 'center', flexWrap: 'nowrap' }}>
                                 <button
                                     onClick={() => setDrawTool('pen')}
                                     style={{ width: '36px', height: '36px', background: drawTool === 'pen' ? '#e2e8f0' : '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '6px' }}
@@ -290,11 +353,30 @@ export default function Editor() {
                                 </button>
 
                                 <button
-                                    onClick={() => setDrawTool('marker')}
-                                    style={{ width: '36px', height: '36px', background: drawTool === 'marker' ? '#e2e8f0' : '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '6px' }}
-                                    title="Marker"
+                                    onClick={() => setDrawTool('line')}
+                                    style={{ width: '36px', height: '36px', background: drawTool === 'line' ? '#e2e8f0' : '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '6px' }}
+                                    title="Straight Line"
                                 >
-                                    <img src="/marker-icon.png" alt="Marker" style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.8 }} />
+                                    <img src="/line-icon.png" alt="Eraser" style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.8 }} />
+                                </button>
+
+                                <button
+                                    onClick={() => setDrawTool('arrow')}
+                                    style={{ width: '36px', height: '36px', background: drawTool === 'arrow' ? '#e2e8f0' : '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '6px' }}
+                                    title="Arrow"
+                                >
+                                    <img src="/arrow-icon.png" alt="Eraser" style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.8 }} />
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setMode('draw');
+                                        setDrawTool('dashed');
+                                    }}
+                                    style={{ width: '36px', height: '36px', background: drawTool === 'dashed' ? '#e2e8f0' : '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '6px' }}
+                                    title="Dashed Line"
+                                >
+                                    <img src="/dashed-icon.png" alt="Eraser" style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.8 }} />
                                 </button>
 
                                 <button
@@ -359,9 +441,52 @@ export default function Editor() {
 
                     <button className="tool-btn" title="Text" onClick={handleAddText}><img src="/text-icon.png" alt="Text" /><span className="tool-text">Text</span></button>
                     <button className="tool-btn" title="Image" onClick={handleImageClick}><img src="/image-icon.png" alt="Image" /><span className="tool-text">Image</span></button>
-                    <button className="tool-btn" title="Filters"><img src="/filter-icon.png" alt="Filters" /><span className="tool-text">Filters</span></button>
                     <div className="tool-divider"></div>
                     <button className="tool-btn" title="History"><img src="/history-icon.png" alt="History" /><span className="tool-text">History</span></button>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: 'center', marginTop: '10px' }}>
+                        <button
+                            className={`tool-btn ${showTemplateMenu ? 'active' : ''}`}
+                            title="Template"
+                            onClick={() => {
+                                setIsSidebarOpen(true);
+                                setShowTemplateMenu(!showTemplateMenu);
+                            }}
+                        >
+                            <img src="/template-icon.png" alt="Template" />
+                            <span className="tool-text">Template</span>
+                        </button>
+
+                        {showTemplateMenu && isSidebarOpen && (
+                            <div style={{
+                                display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 10px', width: '100%',
+                                alignItems: 'center'
+                            }}>
+                                <span style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', lineHeight: '1.2' }}>
+                                    Save the current project with all elements as a template
+                                </span>
+                                <button
+                                    onClick={() => saveAsTemplateMutation.mutate()}
+                                    disabled={saveAsTemplateMutation.isPending}
+                                   className="button-secondary"
+                                    style={{ width: '100%', padding: '8px 12px', fontSize: '12px', marginTop: '8px' }}
+                                >
+                                    {saveAsTemplateMutation.isPending ? 'Saving...' : 'Save the template'}
+                                </button>
+                                {templateMessage && (
+                                    <span style={{
+                                        fontSize: '11px',
+                                        fontWeight: 'bold',
+                                        marginTop: '4px',
+                                        color: templateMessage.type === 'success' ? '#10b981' : '#ef4444',
+                                        textAlign: 'center'
+                                    }}>
+                                        {templateMessage.text}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </aside>
 
                 <main className="editor-canvas-container">
@@ -434,12 +559,89 @@ export default function Editor() {
                                                 <input type="text" value={selectedElement.stroke} onChange={(e) => updateSelectedElement('stroke', e.target.value)} style={{ flex: 1, textTransform: 'uppercase' }} />
                                             </div>
                                         </div>
+                                        <div className="prop-group" style={{ marginTop: '10px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    id="dashedToggle"
+                                                    checked={selectedElement.dash && selectedElement.dash.length > 0}
+                                                    onChange={(e) => {
+                                                        const dashValue = e.target.checked ? [10, 10] : [];
+                                                        updateSelectedElement('dash', dashValue);
+                                                    }}
+                                                    style={{ width: 'auto', cursor: 'pointer' }}
+                                                />
+                                                <label htmlFor="dashedToggle" style={{ margin: 0, cursor: 'pointer' }}>
+                                                    Dashed Line
+                                                </label>
+                                            </div>
+
+                                            {selectedElement.dash && selectedElement.dash.length > 0 && (
+                                                <div className="prop-group" style={{ marginTop: '10px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                                        <label>Dash Pattern</label>
+                                                        <span style={{ fontSize: '12px', color: '#6C8CAB', fontWeight: 'bold' }}>{selectedElement.dash[0]}px</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min="1"
+                                                        max="50"
+                                                        className="dash-slider"
+                                                        value={selectedElement.dash[0]}
+                                                        onChange={(e) => {
+                                                            const val = Number(e.target.value);
+                                                            updateSelectedElement('dash', [val, val]);
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                     </>
                                 )}
 
                                 {selectedElement.type === 'text' && (
                                     <>
-                                        <div className="prop-group"><label>Text Content</label><textarea value={selectedElement.text} onChange={(e) => updateSelectedElement('text', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', minHeight: '60px' }} /></div>
+                                        <div className="prop-group"><label>Text Content</label><textarea value={selectedElement.text} onChange={(e) => updateSelectedElement('text', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', minHeight: '50px' }} /></div>
+                                        <div className="prop-group">
+                                            <label>Font Family</label>
+                                            <select
+                                                value={selectedElement.fontFamily || 'Arial'}
+                                                onChange={(e) => updateSelectedElement('fontFamily', e.target.value)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '8px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid #e2e8f0',
+                                                    marginBottom: '10px',
+                                                    fontFamily: selectedElement.fontFamily || 'Arial'
+                                                }}
+                                            >
+                                                <option value="Arial">Arial</option>
+                                                <option value="Courier New">Courier New</option>
+                                                <option value="Georgia">Georgia</option>
+                                                <option value="Times New Roman">Times New Roman</option>
+                                                <option value="Verdana">Verdana</option>
+                                                <option value="Tahoma">Tahoma</option>
+                                                <option value="Trebuchet MS">Trebuchet MS</option>
+                                            </select>
+
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <button
+                                                    className="button-secondary"
+                                                    style={{ flex: 1, fontSize: '11px', padding: '6px' }}
+                                                    onClick={() => console.log('Upload font trigger')}
+                                                >
+                                                    Upload Font
+                                                </button>
+                                                <button
+                                                    className="button-secondary"
+                                                    style={{ flex: 1, fontSize: '11px', padding: '6px', color: '#ef4444' }}
+                                                    onClick={() => console.log('Delete font trigger')}
+                                                >
+                                                    Delete Font
+                                                </button>
+                                            </div>
+                                        </div>
                                         <div className="prop-group"><label>Font Size</label><input type="number" value={Math.round(selectedElement.fontSize)} onChange={(e) => updateSelectedElement('fontSize', Number(e.target.value))} /></div>
                                         <div className="prop-group"><label>Text Color</label><div style={{ display: 'flex', gap: '10px' }}><input type="color" value={selectedElement.fill} onChange={(e) => updateSelectedElement('fill', e.target.value)} /><input type="text" value={selectedElement.fill} onChange={(e) => updateSelectedElement('fill', e.target.value)} style={{ flex: 1, textTransform: 'uppercase' }} /></div></div>
 
@@ -487,6 +689,63 @@ export default function Editor() {
                                     <div className="prop-group" style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
                                         <div style={{ flex: 1 }}><label>X</label><input type="number" value={Math.round(selectedElement.x)} onChange={(e) => updateSelectedElement('x', Number(e.target.value))} /></div>
                                         <div style={{ flex: 1 }}><label>Y</label><input type="number" value={Math.round(selectedElement.y)} onChange={(e) => updateSelectedElement('y', Number(e.target.value))} /></div>
+                                    </div>
+                                )}
+
+                                {selectedElement.type === 'image' && (
+                                    <div className="prop-group">
+                                        <label>Image Filters</label>
+                                        <button
+                                            className={`button-secondary ${showFiltersMenu ? 'active' : ''}`}
+                                            onClick={() => setShowFiltersMenu(!showFiltersMenu)}
+                                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                        >
+                                            <img src="/filter-icon.png" alt="" style={{ width: '16px', height: '16px' }} />
+                                            {selectedElement.filter || 'No Filter'}
+                                        </button>
+
+                                        {showFiltersMenu && (
+                                            <div className="filters-dropdown-container" style={{
+                                                marginTop: '10px',
+                                                display: 'grid',
+                                                gridTemplateColumns: '1fr 1fr',
+                                                gap: '8px',
+                                                background: '#f8fafc',
+                                                padding: '10px',
+                                                borderRadius: '8px',
+                                                border: '1px solid #e2e8f0'
+                                            }}>
+                                                {FILTERS_LIST.map((f) => (
+                                                    <div
+                                                        key={f.name}
+                                                        onClick={() => {
+                                                            updateSelectedElement('filter', f.filter);
+                                                        }}
+                                                        style={{
+                                                            cursor: 'pointer',
+                                                            textAlign: 'center',
+                                                            padding: '4px',
+                                                            borderRadius: '4px',
+                                                            border: selectedElement.filter === f.filter ? '2px solid #3b82f6' : '1px solid transparent'
+                                                        }}
+                                                    >
+                                                        <div
+                                                            className={`filter-preview-box ${f.previewClass}`}
+                                                            style={{
+                                                                width: '100%',
+                                                                height: '50px',
+                                                                backgroundImage: `url(${selectedElement.src})`,
+                                                                backgroundSize: 'cover',
+                                                                backgroundPosition: 'center',
+                                                                borderRadius: '4px',
+                                                                marginBottom: '4px'
+                                                            }}
+                                                        />
+                                                        <span style={{ fontSize: '10px', fontWeight: 'bold' }}>{f.name}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
