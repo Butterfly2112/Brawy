@@ -1,12 +1,23 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { jsPDF } from 'jspdf';
 import { customFetch } from '../api/http';
 import { useAuthStore } from '../store/auth';
-import WorkspaceCanvas from '../components/WorkspaceCanvas';
+import WorkspaceCanvas, { type CanvasElementProps } from '../components/WorkspaceCanvas';
 
 type ExportFormat = 'png' | 'jpg' | 'svg' | 'pdf';
+
+type EditorSnapshot = {
+    title: string;
+    canvasWidth: number;
+    canvasHeight: number;
+    canvasBgColor: string;
+    elements: CanvasElementProps[];
+};
+
+const cloneElements = (value: CanvasElementProps[]) => JSON.parse(JSON.stringify(value)) as CanvasElementProps[];
+const serializeEditorSnapshot = (snapshot: EditorSnapshot) => JSON.stringify(snapshot);
 
 const escapeXml = (value: unknown) => String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -51,6 +62,7 @@ const buildSvgMarkup = (params: {
     width: number;
     height: number;
     backgroundColor: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     elements: any[];
 }) => {
     const { width, height, backgroundColor, elements } = params;
@@ -219,11 +231,68 @@ export default function Editor() {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showExitModal, setShowExitModal] = useState(false);
     const isProgrammaticUpdate = useRef(true);
+    const isHistoryReplaying = useRef(false);
+    const undoStackRef = useRef<EditorSnapshot[]>([]);
+    const redoStackRef = useRef<EditorSnapshot[]>([]);
+    const lastSnapshotRef = useRef('');
+    const savedSnapshotRef = useRef('');
+
+    const createEditorSnapshot = useCallback((): EditorSnapshot => ({
+        title,
+        canvasWidth,
+        canvasHeight,
+        canvasBgColor,
+        elements: cloneElements(elements),
+    }), [title, canvasWidth, canvasHeight, canvasBgColor, elements]);
+
+    const applyEditorSnapshot = useCallback((snapshot: EditorSnapshot, options?: { markAsSaved?: boolean }) => {
+        isProgrammaticUpdate.current = true;
+        isHistoryReplaying.current = true;
+
+        setTitle(snapshot.title);
+        setCanvasWidth(snapshot.canvasWidth);
+        setCanvasHeight(snapshot.canvasHeight);
+        setCanvasBgColor(snapshot.canvasBgColor);
+        setElements(cloneElements(snapshot.elements));
+        setSelectedId(null);
+        setMode('select');
+
+        const snapshotSignature = serializeEditorSnapshot(snapshot);
+        lastSnapshotRef.current = snapshotSignature;
+
+        if (options?.markAsSaved) {
+            savedSnapshotRef.current = snapshotSignature;
+        }
+
+        window.setTimeout(() => {
+            isProgrammaticUpdate.current = false;
+            isHistoryReplaying.current = false;
+            setHasUnsavedChanges(lastSnapshotRef.current !== savedSnapshotRef.current);
+        }, 0);
+    }, []);
 
     useEffect(() => {
         if (isProgrammaticUpdate.current) return;
         setHasUnsavedChanges(true);
     }, [elements, title, canvasWidth, canvasHeight, canvasBgColor]);
+
+    useEffect(() => {
+        if (isProgrammaticUpdate.current || isHistoryReplaying.current) return;
+
+        const currentSnapshot = createEditorSnapshot();
+        const currentSignature = serializeEditorSnapshot(currentSnapshot);
+
+        if (lastSnapshotRef.current && lastSnapshotRef.current !== currentSignature) {
+            undoStackRef.current.push(JSON.parse(lastSnapshotRef.current) as EditorSnapshot);
+            if (undoStackRef.current.length > 50) {
+                undoStackRef.current.shift();
+            }
+            redoStackRef.current = [];
+        }
+
+        lastSnapshotRef.current = currentSignature;
+        setHasUnsavedChanges(currentSignature !== savedSnapshotRef.current);
+    }, [title, canvasWidth, canvasHeight, canvasBgColor, elements, createEditorSnapshot]);
 
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -274,7 +343,7 @@ export default function Editor() {
         }
     };
 
-    const applyProjectState = (projectData: {
+    const applyProjectState = useCallback((projectData: {
         id: number;
         title?: string;
         width?: number;
@@ -282,33 +351,23 @@ export default function Editor() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         canvasData?: any;
     }) => {
-        isProgrammaticUpdate.current = true;
-
         const parsedCanvas = typeof projectData.canvasData === 'string'
             ? JSON.parse(projectData.canvasData)
             : projectData.canvasData;
 
-        setTitle(projectData.title || 'Untitled Design');
-        if (projectData.width) setCanvasWidth(projectData.width);
-        if (projectData.height) setCanvasHeight(projectData.height);
+        applyEditorSnapshot({
+            title: projectData.title || 'Untitled Design',
+            canvasWidth: projectData.width || canvasWidth,
+            canvasHeight: projectData.height || canvasHeight,
+            canvasBgColor: parsedCanvas?.attrs?.backgroundColor || '#ffffff',
+            elements: Array.isArray(parsedCanvas?.children) ? parsedCanvas.children : [],
+        }, { markAsSaved: true });
 
-        if (parsedCanvas?.attrs?.backgroundColor) {
-            setCanvasBgColor(parsedCanvas.attrs.backgroundColor);
-        }
-
-        if (parsedCanvas?.children) {
-            setElements(parsedCanvas.children);
-        }
-
-        setSelectedId(null);
-        setMode('select');
         loadedProjectIdRef.current = projectData.id;
 
-        setTimeout(() => {
-            isProgrammaticUpdate.current = false;
-            setHasUnsavedChanges(false);
-        }, 100);
-    };
+        undoStackRef.current = [];
+        redoStackRef.current = [];
+    }, [applyEditorSnapshot, canvasHeight, canvasWidth]);
 
     const { data: project, isLoading, isError } = useQuery({
         queryKey: ['project', id],
@@ -353,7 +412,7 @@ export default function Editor() {
         if (project && loadedProjectIdRef.current !== project.id) {
             applyProjectState(project);
         }
-    }, [project]);
+    }, [project, applyProjectState]);
 
     useEffect(() => {
         if (!showExportMenu) return;
@@ -467,12 +526,15 @@ export default function Editor() {
         img.src = imgUrl;
     };
 
+    const tempImageIdRef = useRef(0);
+
     const handleImageClick = () => {
         fileInputRef.current?.click();
     };
 
     const handleAddExistingImage = (url: string) => {
-        const tempId = Date.now().toString();
+        tempImageIdRef.current += 1;
+        const tempId = `image-${tempImageIdRef.current}`;
         const img = new window.Image();
 
         img.onload = () => {
@@ -606,6 +668,7 @@ export default function Editor() {
         },
         onSuccess: () => {
             setHasUnsavedChanges(false);
+            savedSnapshotRef.current = serializeEditorSnapshot(createEditorSnapshot());
             queryClient.invalidateQueries({ queryKey: ['project', id] });
             queryClient.invalidateQueries({ queryKey: ['project-history', id] });
         },
@@ -980,8 +1043,51 @@ export default function Editor() {
     const bringToFront = () => moveSelectedElement(elements.length - 1);
     const sendToBack = () => moveSelectedElement(0);
 
+    const undoChange = useCallback(() => {
+        const previousSnapshot = undoStackRef.current.pop();
+        if (!previousSnapshot) return;
+
+        redoStackRef.current.push(createEditorSnapshot());
+        applyEditorSnapshot(previousSnapshot);
+    }, [applyEditorSnapshot, createEditorSnapshot]);
+
+    const redoChange = useCallback(() => {
+        const nextSnapshot = redoStackRef.current.pop();
+        if (!nextSnapshot) return;
+
+        undoStackRef.current.push(createEditorSnapshot());
+        applyEditorSnapshot(nextSnapshot);
+    }, [applyEditorSnapshot, createEditorSnapshot]);
+
     const selectedElement = elements.find(el => el.id === selectedId);
     const selectedElementType = selectedElement?.type || 'element';
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLElement && e.target.isContentEditable)) {
+                return;
+            }
+
+            const isMetaOrCtrl = e.ctrlKey || e.metaKey;
+            const key = e.key.toLowerCase();
+
+            if (!isMetaOrCtrl) return;
+
+            if (key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undoChange();
+                return;
+            }
+
+            if (key === 'y' || (key === 'z' && e.shiftKey)) {
+                e.preventDefault();
+                redoChange();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [elements, title, canvasWidth, canvasHeight, canvasBgColor, undoChange, redoChange]);
 
     if (isLoading) return <div className="editor-loading">Loading Workspace...</div>;
     if (isError) return (
@@ -1458,6 +1564,29 @@ export default function Editor() {
                                 <div className="prop-group"><label>Canvas Width</label><input type="number" value={canvasWidth} onChange={(e) => setCanvasWidth(Number(e.target.value) || 1)} min="1" /></div>
                                 <div className="prop-group"><label>Canvas Height</label><input type="number" value={canvasHeight} onChange={(e) => setCanvasHeight(Number(e.target.value) || 1)} min="1" /></div>
                                 <div className="prop-group"><label>Background</label><div style={{ display: 'flex', gap: '10px' }}><input type="color" value={canvasBgColor} onChange={(e) => setCanvasBgColor(e.target.value)} /><input type="text" value={canvasBgColor} onChange={(e) => setCanvasBgColor(e.target.value)} style={{ flex: 1, textTransform: 'uppercase' }} /></div></div>
+                                <div className="prop-group">
+                                    <label>History</label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                        <button
+                                            className="button-secondary"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={undoChange}
+                                            title="Undo (Ctrl+Z)"
+                                            style={{ padding: '8px 10px', marginBottom: 0 }}
+                                        >
+                                            Undo
+                                        </button>
+                                        <button
+                                            className="button-secondary"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={redoChange}
+                                            title="Redo (Ctrl+Y / Ctrl+Shift+Z)"
+                                            style={{ padding: '8px 10px', marginBottom: 0 }}
+                                        >
+                                            Redo
+                                        </button>
+                                    </div>
+                                </div>
                                 <div className="prop-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px' }}><input type="checkbox" id="gridToggle" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} style={{ width: 'auto', cursor: 'pointer', transform: 'scale(1.2)' }} /><label htmlFor="gridToggle" style={{ margin: 0, cursor: 'pointer' }}>Show Grid</label></div>
                             </div>
                         ) : (
