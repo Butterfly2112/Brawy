@@ -1,9 +1,163 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { jsPDF } from 'jspdf';
 import { customFetch } from '../api/http';
 import { useAuthStore } from '../store/auth';
 import WorkspaceCanvas from '../components/WorkspaceCanvas';
+
+type ExportFormat = 'png' | 'jpg' | 'svg' | 'pdf';
+
+const escapeXml = (value: unknown) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
+const createSafeFilename = (value: string) => {
+    const cleaned = value
+        .trim()
+        .replace(/[<>:"/\\|?*]/g, '')
+        .replace(/\s+/g, '_')
+        .replace(/\.+$/g, '');
+
+    return cleaned || 'project';
+};
+
+const formatNumber = (value: number) => Number.isFinite(value) ? Number(value.toFixed(2)) : 0;
+
+const buildTrianglePoints = (x: number, y: number, width: number, height: number) => {
+    const top = `${formatNumber(x + width / 2)},${formatNumber(y)}`;
+    const left = `${formatNumber(x)},${formatNumber(y + height)}`;
+    const right = `${formatNumber(x + width)},${formatNumber(y + height)}`;
+    return `${top} ${left} ${right}`;
+};
+
+const buildStarPoints = (centerX: number, centerY: number, outerRadius: number, innerRadius: number, points = 5) => {
+    const vertices = [];
+    const step = Math.PI / points;
+
+    for (let index = 0; index < points * 2; index += 1) {
+        const radius = index % 2 === 0 ? outerRadius : innerRadius;
+        const angle = -Math.PI / 2 + index * step;
+        vertices.push(`${formatNumber(centerX + Math.cos(angle) * radius)},${formatNumber(centerY + Math.sin(angle) * radius)}`);
+    }
+
+    return vertices.join(' ');
+};
+
+const buildSvgMarkup = (params: {
+    width: number;
+    height: number;
+    backgroundColor: string;
+    elements: any[];
+}) => {
+    const { width, height, backgroundColor, elements } = params;
+    const content = elements.map((element) => {
+        if (!element?.type) return '';
+
+        if (element.type === 'text') {
+            const text = String(element.text ?? '');
+            const fontSize = Number(element.fontSize ?? 32);
+            const x = Number(element.x ?? 0);
+            const y = Number(element.y ?? 0);
+            const widthValue = Number(element.width ?? 0);
+            const fontFamily = escapeXml(element.fontFamily ?? 'Arial');
+            const fontStyle = element.fontStyle?.includes('italic') ? 'italic' : 'normal';
+            const fontWeight = element.fontStyle?.includes('bold') ? '700' : '400';
+            const textDecoration = element.textDecoration || 'none';
+            const fill = escapeXml(element.fill ?? '#000000');
+            const align = element.align === 'center' ? 'middle' : element.align === 'right' ? 'end' : 'start';
+            const textX = align === 'middle' ? x + widthValue / 2 : align === 'end' ? x + widthValue : x;
+            const lines = text.split('\n');
+            const lineHeight = fontSize * 1.2;
+
+            return `
+                <text x="${formatNumber(textX)}" y="${formatNumber(y)}" fill="${fill}" font-family="${fontFamily}" font-size="${formatNumber(fontSize)}" font-style="${fontStyle}" font-weight="${fontWeight}" text-decoration="${textDecoration}" text-anchor="${align}" xml:space="preserve">
+                    ${lines.map((line, index) => `<tspan x="${formatNumber(textX)}" dy="${index === 0 ? 0 : formatNumber(lineHeight)}">${escapeXml(line || ' ')}</tspan>`).join('')}
+                </text>
+            `;
+        }
+
+        if (element.type === 'image') {
+            const x = Number(element.x ?? 0);
+            const y = Number(element.y ?? 0);
+            const widthValue = Number(element.width ?? 100);
+            const heightValue = Number(element.height ?? 100);
+            const src = escapeXml(element.src ?? '');
+
+            if (!src) return '';
+
+            return `
+                <image href="${src}" x="${formatNumber(x)}" y="${formatNumber(y)}" width="${formatNumber(widthValue)}" height="${formatNumber(heightValue)}" preserveAspectRatio="none" />
+            `;
+        }
+
+        if (element.type === 'shape') {
+            const fill = escapeXml(element.fill ?? '#cbd5e1');
+            const x = Number(element.x ?? 0);
+            const y = Number(element.y ?? 0);
+            const widthValue = Number(element.width ?? element.baseWidth ?? 150);
+            const heightValue = Number(element.height ?? element.baseHeight ?? 150);
+
+            if (element.shapeType === 'rect') {
+                const cornerRadius = Number(element.cornerRadius ?? 0);
+                return `<rect x="${formatNumber(x)}" y="${formatNumber(y)}" width="${formatNumber(widthValue)}" height="${formatNumber(heightValue)}" rx="${formatNumber(cornerRadius)}" ry="${formatNumber(cornerRadius)}" fill="${fill}" />`;
+            }
+
+            if (element.shapeType === 'ellipse') {
+                return `<ellipse cx="${formatNumber(x + widthValue / 2)}" cy="${formatNumber(y + heightValue / 2)}" rx="${formatNumber(widthValue / 2)}" ry="${formatNumber(heightValue / 2)}" fill="${fill}" />`;
+            }
+
+            if (element.shapeType === 'triangle') {
+                return `<polygon points="${buildTrianglePoints(x, y, widthValue, heightValue)}" fill="${fill}" />`;
+            }
+
+            if (element.shapeType === 'star') {
+                const outerRadius = Math.max(5, Math.min(widthValue, heightValue) / 2);
+                const innerRadius = Number(element.innerRadius ?? outerRadius * 0.45);
+                const points = Number(element.numPoints ?? 5);
+                return `<polygon points="${buildStarPoints(x + widthValue / 2, y + heightValue / 2, outerRadius, innerRadius, points)}" fill="${fill}" />`;
+            }
+        }
+
+        if (element.type === 'line') {
+            const points = Array.isArray(element.points) ? element.points : [];
+            if (points.length < 4) return '';
+
+            const strokeColor = escapeXml(element.tool === 'eraser' ? backgroundColor : (element.stroke ?? '#000000'));
+            const strokeWidth = Number(element.strokeWidth ?? 5);
+            const dashArray = Array.isArray(element.dash) && element.dash.length > 0 ? ` stroke-dasharray="${element.dash.join(' ')}"` : '';
+            const pathPoints = (points as number[]).reduce((acc: string[], point: number, index: number) => {
+                if (index % 2 === 0) {
+                    acc.push(`${formatNumber(point)},${formatNumber(points[index + 1] ?? point)}`);
+                }
+                return acc;
+            }, []).join(' ');
+
+            if (element.tool === 'arrow') {
+                return `<polyline points="${pathPoints}" fill="none" stroke="${strokeColor}" stroke-width="${formatNumber(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"${dashArray} />`;
+            }
+
+            return `<polyline points="${pathPoints}" fill="none" stroke="${strokeColor}" stroke-width="${formatNumber(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round"${dashArray} />`;
+        }
+
+        return '';
+    }).join('');
+
+    return `
+        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${formatNumber(width)}" height="${formatNumber(height)}" viewBox="0 0 ${formatNumber(width)} ${formatNumber(height)}" shape-rendering="geometricPrecision">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L10,3.5 L0,7 Z" fill="#000000" />
+                </marker>
+            </defs>
+            <rect width="100%" height="100%" fill="${escapeXml(backgroundColor)}" />
+            ${content}
+        </svg>
+    `;
+};
 
 export default function Editor() {
     const { id } = useParams<{ id: string }>();
@@ -50,6 +204,8 @@ export default function Editor() {
     const [templateMessage, setTemplateMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
     const [historyMessage, setHistoryMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
     const [showImageMenu, setShowImageMenu] = useState(false);
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const loadedProjectIdRef = useRef<number | null>(null);
@@ -198,6 +354,20 @@ export default function Editor() {
             applyProjectState(project);
         }
     }, [project]);
+
+    useEffect(() => {
+        if (!showExportMenu) return;
+
+        const handlePointerDown = (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (!target?.closest('[data-export-menu]')) {
+                setShowExportMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handlePointerDown);
+        return () => document.removeEventListener('mousedown', handlePointerDown);
+    }, [showExportMenu]);
 
     useEffect(() => {
         if (!historyMessage) return;
@@ -531,6 +701,133 @@ export default function Editor() {
         });
     };
 
+    const downloadBlob = (blob: Blob, filename: string) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
+    };
+
+    const captureStageCanvas = () => {
+        if (!stageRef.current) return undefined;
+
+        const transformer = stageRef.current.findOne('Transformer');
+        const previousVisible = transformer?.visible?.();
+
+        try {
+            if (transformer) {
+                transformer.visible(false);
+                transformer.getLayer()?.batchDraw();
+            }
+
+            const stageCanvas = stageRef.current.toCanvas({
+                pixelRatio: 2,
+                x: 0,
+                y: 0,
+                width: canvasWidth,
+                height: canvasHeight,
+            });
+
+            const composedCanvas = document.createElement('canvas');
+            composedCanvas.width = stageCanvas.width;
+            composedCanvas.height = stageCanvas.height;
+
+            const context = composedCanvas.getContext('2d');
+            if (!context) return undefined;
+
+            context.fillStyle = canvasBgColor;
+            context.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
+            context.drawImage(stageCanvas, 0, 0);
+
+            return composedCanvas;
+        } finally {
+            if (transformer) {
+                transformer.visible(previousVisible ?? true);
+                transformer.getLayer()?.batchDraw();
+            }
+        }
+    };
+
+    const exportCanvasAsImage = async (format: 'png' | 'jpg') => {
+        const exportCanvas = captureStageCanvas();
+        if (!exportCanvas) {
+            throw new Error('Canvas is not ready for export');
+        }
+
+        const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+        const quality = format === 'jpg' ? 0.92 : undefined;
+
+        const blob = await new Promise<Blob>((resolve, reject) => {
+            exportCanvas.toBlob((result) => {
+                if (!result) {
+                    reject(new Error('Failed to export image'));
+                    return;
+                }
+
+                resolve(result);
+            }, mimeType, quality);
+        });
+
+        downloadBlob(blob, `${createSafeFilename(title)}.${format}`);
+    };
+
+    const exportCanvasAsSvg = () => {
+        const svgMarkup = buildSvgMarkup({
+            width: canvasWidth,
+            height: canvasHeight,
+            backgroundColor: canvasBgColor,
+            elements,
+        });
+
+        const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+        downloadBlob(blob, `${createSafeFilename(title)}.svg`);
+    };
+
+    const exportCanvasAsPdf = async () => {
+        const exportCanvas = captureStageCanvas();
+        if (!exportCanvas) {
+            throw new Error('Canvas is not ready for export');
+        }
+
+        const dataUrl = exportCanvas.toDataURL('image/png');
+        const orientation = canvasWidth >= canvasHeight ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({
+            orientation,
+            unit: 'px',
+            format: [canvasWidth, canvasHeight],
+            compress: true,
+        });
+
+        pdf.addImage(dataUrl, 'PNG', 0, 0, canvasWidth, canvasHeight);
+        pdf.save(`${createSafeFilename(title)}.pdf`);
+    };
+
+    const handleExport = async (format: ExportFormat) => {
+        if (isExporting) return;
+
+        setIsExporting(true);
+        setShowExportMenu(false);
+
+        try {
+            if (format === 'png' || format === 'jpg') {
+                await exportCanvasAsImage(format);
+            } else if (format === 'svg') {
+                exportCanvasAsSvg();
+            } else {
+                await exportCanvasAsPdf();
+            }
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('Export failed. Please try again.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const visibleHistoryVersions = historyVersions.filter((version) => Boolean(version.thumbnail_url));
 
     const generateThumbnailDataUrl = () => {
@@ -683,7 +980,55 @@ export default function Editor() {
                     >
                         Save
                     </button>
-                    <button className="button-agree">Export</button>
+                    <div data-export-menu style={{ position: 'relative' }}>
+                        <button
+                            className="button-agree"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => setShowExportMenu((value) => !value)}
+                            disabled={isExporting}
+                        >
+                            {isExporting ? 'Exporting...' : 'Export'}
+                        </button>
+
+                        {showExportMenu && (
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: 'calc(100% + 8px)',
+                                    right: 0,
+                                    background: '#fff',
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 16px 40px rgba(15, 23, 42, 0.18)',
+                                    minWidth: '180px',
+                                    zIndex: 50,
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                {(['png', 'jpg', 'svg', 'pdf'] as ExportFormat[]).map((format) => (
+                                    <button
+                                        key={format}
+                                        type="button"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => handleExport(format)}
+                                        style={{
+                                            display: 'block',
+                                            width: '100%',
+                                            padding: '10px 14px',
+                                            border: 'none',
+                                            background: 'transparent',
+                                            textAlign: 'left',
+                                            cursor: 'pointer',
+                                            fontSize: '13px',
+                                            color: '#0f172a',
+                                        }}
+                                    >
+                                        Export as {format.toUpperCase()}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     <img
                         src={user?.avatar_url || '/default-avatar.png'}
                         alt="User"
@@ -1378,7 +1723,7 @@ export default function Editor() {
                                 onClick={async () => {
                                     try {
                                         await saveMutation.mutateAsync({
-                                            title, width: canvasWidth, height: canvasHeight, bgColor: canvasBgColor, elements, thumbnailUrl: generateThumbnailDataUrl()
+                                            title, width: canvasWidth, height: canvasHeight, bgColor: canvasBgColor, elements, thumbnailDataUrl: generateThumbnailDataUrl()
                                         });
                                         navigate('/home');
                                     } catch (e) {
