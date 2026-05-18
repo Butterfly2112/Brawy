@@ -886,6 +886,51 @@ export default function Editor() {
         setElements(elements.map(el => el.id === selectedId ? { ...el, [key]: value } : el));
     };
 
+    const flipSelectedElement = (axis: 'x' | 'y') => {
+        if (!selectedId) return;
+
+        setElements((prev) => prev.map((el) => {
+            if (el.id !== selectedId) return el;
+
+            if (el.type === 'line') {
+                const points: number[] = Array.isArray(el.points) ? (el.points as number[]) : [];
+                if (points.length < 4) return el;
+
+                const xValues: number[] = [];
+                const yValues: number[] = [];
+
+                for (let index = 0; index < points.length; index += 2) {
+                    xValues.push(Number(points[index]));
+                    yValues.push(Number(points[index + 1]));
+                }
+
+                const minX = Math.min(...xValues);
+                const maxX = Math.max(...xValues);
+                const minY = Math.min(...yValues);
+                const maxY = Math.max(...yValues);
+
+                const mirroredPoints = points.map((point: number, index: number) => {
+                    if (index % 2 === 0) {
+                        return axis === 'x' ? minX + maxX - Number(point) : Number(point);
+                    }
+
+                    return axis === 'y' ? minY + maxY - Number(point) : Number(point);
+                });
+
+                return { ...el, points: mirroredPoints };
+            }
+
+            const currentScaleX = typeof el.scaleX === 'number' && el.scaleX !== 0 ? el.scaleX : 1;
+            const currentScaleY = typeof el.scaleY === 'number' && el.scaleY !== 0 ? el.scaleY : 1;
+
+            if (axis === 'x') {
+                return { ...el, scaleX: -currentScaleX };
+            }
+
+            return { ...el, scaleY: -currentScaleY };
+        }));
+    };
+
     const selectedElementIndex = elements.findIndex(el => el.id === selectedId);
 
     const getLayerLabel = (element?: { type?: string; text?: string; shapeType?: string; tool?: string }) => {
@@ -1643,7 +1688,10 @@ export default function Editor() {
                                             <input type="number" value={Math.round(selectedElement.width)} onChange={(e) => {
                                                 const val = Number(e.target.value);
                                                 updateSelectedElement('width', val);
-                                                if (selectedElement.baseWidth) updateSelectedElement('scaleX', val / selectedElement.baseWidth);
+                                                if (selectedElement.baseWidth) {
+                                                    const signX = (selectedElement.scaleX || 1) < 0 ? -1 : 1;
+                                                    updateSelectedElement('scaleX', (val / selectedElement.baseWidth) * signX);
+                                                }
                                             }} />
                                         </div>
                                         <div style={{ flex: 1 }}>
@@ -1651,8 +1699,33 @@ export default function Editor() {
                                             <input type="number" value={Math.round(selectedElement.height)} onChange={(e) => {
                                                 const val = Number(e.target.value);
                                                 updateSelectedElement('height', val);
-                                                if (selectedElement.baseHeight) updateSelectedElement('scaleY', val / selectedElement.baseHeight);
+                                                if (selectedElement.baseHeight) {
+                                                    const signY = (selectedElement.scaleY || 1) < 0 ? -1 : 1;
+                                                    updateSelectedElement('scaleY', (val / selectedElement.baseHeight) * signY);
+                                                }
                                             }} />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedElement.type && (
+                                    <div className="prop-group">
+                                        <label>Flip</label>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                            <button
+                                                className="button-secondary"
+                                                onClick={() => flipSelectedElement('x')}
+                                                style={{ padding: '8px 10px', marginBottom: 0 }}
+                                            >
+                                                Flip X
+                                            </button>
+                                            <button
+                                                className="button-secondary"
+                                                onClick={() => flipSelectedElement('y')}
+                                                style={{ padding: '8px 10px', marginBottom: 0 }}
+                                            >
+                                                Flip Y
+                                            </button>
                                         </div>
                                     </div>
                                 )}

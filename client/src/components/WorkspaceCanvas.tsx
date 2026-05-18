@@ -111,6 +111,10 @@ const URLImage = ({ imageInfo, onSelect, onChange, dragBoundFunc }: {
 }) => {
     const [image] = useImageSource(imageInfo.src);
     const imageRef = useRef<Konva.Image>(null);
+    const width = imageInfo.width || (image ? image.width : 100);
+    const height = imageInfo.height || (image ? image.height : 100);
+    const scaleX = imageInfo.scaleX ?? 1;
+    const scaleY = imageInfo.scaleY ?? 1;
 
     useEffect(() => {
         if (image && imageRef.current) {
@@ -139,28 +143,37 @@ const URLImage = ({ imageInfo, onSelect, onChange, dragBoundFunc }: {
 
     return (
         <KonvaImage
-            id={imageInfo.id} ref={imageRef} image={image} x={imageInfo.x} y={imageInfo.y}
-            width={imageInfo.width || (image ? image.width : 100)} height={imageInfo.height || (image ? image.height : 100)}
+            id={imageInfo.id} ref={imageRef} image={image}
+            x={(imageInfo.x || 0) + width / 2} y={(imageInfo.y || 0) + height / 2}
+            offsetX={width / 2} offsetY={height / 2}
+            width={width} height={height}
+            scaleX={scaleX} scaleY={scaleY}
             draggable dragBoundFunc={dragBoundFunc}
             filters={getFilters()} blurRadius={imageInfo.filter === 'Blur' ? 10 : 0} brightness={imageInfo.filter === 'Brighten' ? 0.5 : 0}
 
             rotation={imageInfo.rotation || 0}
 
             onClick={onSelect} onTap={onSelect}
-            onDragEnd={(e: Konva.KonvaEventObject<Event>) => onChange({ ...imageInfo, x: e.target.x(), y: e.target.y() })}
+            onDragEnd={(e: Konva.KonvaEventObject<Event>) => onChange({ ...imageInfo, x: e.target.x() - width / 2, y: e.target.y() - height / 2 })}
             onTransformEnd={(e: Konva.KonvaEventObject<Event>) => {
                 const node = e.target as Konva.Node;
-                const newWidth = Math.max(5, node.width() * node.scaleX());
-                const newHeight = Math.max(5, node.height() * node.scaleY());
-                node.scaleX(1);
-                node.scaleY(1);
+                const currentScaleX = node.scaleX();
+                const currentScaleY = node.scaleY();
+                const signX = Math.sign(currentScaleX) || 1;
+                const signY = Math.sign(currentScaleY) || 1;
+                const newWidth = Math.max(5, node.width() * Math.abs(currentScaleX));
+                const newHeight = Math.max(5, node.height() * Math.abs(currentScaleY));
+                node.scaleX(signX);
+                node.scaleY(signY);
 
                 onChange({
                     ...imageInfo,
-                    x: node.x(),
-                    y: node.y(),
+                    x: node.x() - newWidth / 2,
+                    y: node.y() - newHeight / 2,
                     width: newWidth,
                     height: newHeight,
+                    scaleX: signX,
+                    scaleY: signY,
                     rotation: node.rotation()
                 });
             }}
@@ -172,10 +185,19 @@ const EditableText = ({ textInfo, isEditing, onSelect, onDoubleClick, onChange, 
     textInfo: CanvasElementProps, isEditing: boolean, onSelect: () => void, onDoubleClick: () => void, onChange: (newProps: CanvasElementProps) => void, dragBoundFunc?: (pos: Konva.Vector2d) => Konva.Vector2d
 }) => {
     const textRef = useRef<Konva.Text>(null);
+    const width = textInfo.width || 300;
+    const lineCount = String(textInfo.text || '').split('\n').length || 1;
+    const textHeight = (textInfo.fontSize || 32) * 1.2 * lineCount;
+    const scaleX = textInfo.scaleX ?? 1;
+    const scaleY = textInfo.scaleY ?? 1;
+
     return (
         <KonvaText
-            id={textInfo.id} ref={textRef} text={textInfo.text} x={textInfo.x} y={textInfo.y}
-            fontSize={textInfo.fontSize || 32} fill={textInfo.fill || '#000000'} width={textInfo.width}
+            id={textInfo.id} ref={textRef} text={textInfo.text}
+            x={(textInfo.x || 0) + width / 2} y={(textInfo.y || 0) + textHeight / 2}
+            offsetX={width / 2} offsetY={textHeight / 2}
+            scaleX={scaleX} scaleY={scaleY}
+            fontSize={textInfo.fontSize || 32} fill={textInfo.fill || '#000000'} width={width}
             fontFamily={textInfo.fontFamily || 'Arial'} fontStyle={textInfo.fontStyle || 'normal'} textDecoration={textInfo.textDecoration || ''} align={textInfo.align || 'left'}
             draggable={!isEditing} opacity={isEditing ? 0 : 1}
             dragBoundFunc={dragBoundFunc}
@@ -183,17 +205,23 @@ const EditableText = ({ textInfo, isEditing, onSelect, onDoubleClick, onChange, 
             rotation={textInfo.rotation || 0}
 
             onClick={onSelect} onTap={onSelect} onDblClick={onDoubleClick} onDblTap={onDoubleClick}
-            onDragEnd={(e: Konva.KonvaEventObject<Event>) => onChange({ ...textInfo, x: e.target.x(), y: e.target.y() })}
+            onDragEnd={(e: Konva.KonvaEventObject<Event>) => onChange({ ...textInfo, x: e.target.x() - width / 2, y: e.target.y() - textHeight / 2 })}
             onTransformEnd={(e: Konva.KonvaEventObject<Event>) => {
                 const node = e.target as Konva.Node;
-                const scaleX = node.scaleX(); const scaleY = node.scaleY();
-                node.scaleX(1); node.scaleY(1);
+                const currentScaleX = node.scaleX();
+                const currentScaleY = node.scaleY();
+                const signX = Math.sign(currentScaleX) || 1;
+                const signY = Math.sign(currentScaleY) || 1;
+                node.scaleX(signX);
+                node.scaleY(signY);
                 onChange({
                     ...textInfo,
-                    x: node.x(),
-                    y: node.y(),
-                    fontSize: Math.max(10, (textInfo.fontSize || 32) * scaleY),
-                    width: Math.max(10, node.width() * scaleX),
+                    x: node.x() - Math.max(10, node.width() * Math.abs(currentScaleX)) / 2,
+                    y: node.y() - textHeight / 2,
+                    fontSize: Math.max(10, (textInfo.fontSize || 32) * Math.abs(currentScaleY)),
+                    width: Math.max(10, node.width() * Math.abs(currentScaleX)),
+                    scaleX: signX,
+                    scaleY: signY,
                     rotation: node.rotation()
                 });
             }}
@@ -207,6 +235,10 @@ const CanvasShape = ({ shapeInfo, onSelect, onChange, dragBoundFunc }: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const shapeRef = useRef<any>(null);
     const isComplex = shapeInfo.shapeType === 'triangle' || shapeInfo.shapeType === 'star';
+    const width = shapeInfo.width || shapeInfo.baseWidth || 150;
+    const height = shapeInfo.height || shapeInfo.baseHeight || 150;
+    const scaleX = shapeInfo.scaleX ?? 1;
+    const scaleY = shapeInfo.scaleY ?? 1;
 
     const commonProps = {
         id: shapeInfo.id, ref: shapeRef, fill: shapeInfo.fill, draggable: true,
@@ -217,37 +249,46 @@ const CanvasShape = ({ shapeInfo, onSelect, onChange, dragBoundFunc }: {
 
         onDragEnd: (e: Konva.KonvaEventObject<Event>) => {
             const node = e.target as Konva.Node;
-            if (shapeInfo.shapeType === 'ellipse') { onChange({ ...shapeInfo, x: node.x() - (shapeInfo.width || 0) / 2, y: node.y() - (shapeInfo.height || 0) / 2 }); }
-            else { onChange({ ...shapeInfo, x: node.x(), y: node.y() }); }
+            if (isComplex) {
+                onChange({ ...shapeInfo, x: node.x(), y: node.y() });
+            } else {
+                onChange({ ...shapeInfo, x: node.x() - width / 2, y: node.y() - height / 2 });
+            }
         },
         onTransformEnd: (e: Konva.KonvaEventObject<Event>) => {
             const node = e.target as Konva.Node;
-            const scaleX = node.scaleX(); const scaleY = node.scaleY();
+            const currentScaleX = node.scaleX();
+            const currentScaleY = node.scaleY();
             if (!isComplex) {
-                node.scaleX(1); node.scaleY(1);
-                let newX = node.x(); let newY = node.y();
-                if (shapeInfo.shapeType === 'ellipse') { newX -= (node.width() * scaleX) / 2; newY -= (node.height() * scaleY) / 2; }
+                const signX = Math.sign(currentScaleX) || 1;
+                const signY = Math.sign(currentScaleY) || 1;
+                const newWidth = Math.max(10, node.width() * Math.abs(currentScaleX));
+                const newHeight = Math.max(10, node.height() * Math.abs(currentScaleY));
+                node.scaleX(signX);
+                node.scaleY(signY);
 
                 onChange({
-                    ...shapeInfo, x: newX, y: newY,
-                    width: Math.max(10, node.width() * scaleX),
-                    height: Math.max(10, node.height() * scaleY),
+                    ...shapeInfo, x: node.x() - newWidth / 2, y: node.y() - newHeight / 2,
+                    width: newWidth,
+                    height: newHeight,
+                    scaleX: signX,
+                    scaleY: signY,
                     rotation: node.rotation()
                 });
             } else {
                 onChange({
                     ...shapeInfo, x: node.x(), y: node.y(),
-                    scaleX: scaleX, scaleY: scaleY,
-                    width: Math.max(10, (shapeInfo.baseWidth || 150) * scaleX),
-                    height: Math.max(10, (shapeInfo.baseHeight || 150) * scaleY),
+                    scaleX: currentScaleX, scaleY: currentScaleY,
+                    width: Math.max(10, (shapeInfo.baseWidth || 150) * Math.abs(currentScaleX)),
+                    height: Math.max(10, (shapeInfo.baseHeight || 150) * Math.abs(currentScaleY)),
                     rotation: node.rotation()
                 });
             }
         }
     };
 
-    if (shapeInfo.shapeType === 'rect') return <Rect {...commonProps} x={shapeInfo.x} y={shapeInfo.y} width={shapeInfo.width} height={shapeInfo.height} cornerRadius={shapeInfo.cornerRadius || 0} />;
-    if (shapeInfo.shapeType === 'ellipse') return <Ellipse radiusX={0} radiusY={0} {...commonProps} x={(shapeInfo.x || 0) + (shapeInfo.width || 100) / 2} y={(shapeInfo.y || 0) + (shapeInfo.height || 100) / 2} width={shapeInfo.width} height={shapeInfo.height} />;
+    if (shapeInfo.shapeType === 'rect') return <Rect {...commonProps} x={(shapeInfo.x || 0) + width / 2} y={(shapeInfo.y || 0) + height / 2} offsetX={width / 2} offsetY={height / 2} width={width} height={height} scaleX={scaleX} scaleY={scaleY} cornerRadius={shapeInfo.cornerRadius || 0} />;
+    if (shapeInfo.shapeType === 'ellipse') return <Ellipse {...commonProps} x={(shapeInfo.x || 0) + width / 2} y={(shapeInfo.y || 0) + height / 2} radiusX={width / 2} radiusY={height / 2} scaleX={scaleX} scaleY={scaleY} />;
     if (shapeInfo.shapeType === 'triangle') return <RegularPolygon {...commonProps} x={shapeInfo.x} y={shapeInfo.y} sides={3} radius={(shapeInfo.baseWidth || 150) / 2} scaleX={shapeInfo.scaleX || 1} scaleY={shapeInfo.scaleY || 1} />;
     if (shapeInfo.shapeType === 'star') return <Star {...commonProps} x={shapeInfo.x} y={shapeInfo.y} numPoints={shapeInfo.numPoints || 5} outerRadius={(shapeInfo.baseWidth || 150) / 2} innerRadius={shapeInfo.innerRadius || 35} scaleX={shapeInfo.scaleX || 1} scaleY={shapeInfo.scaleY || 1} />;
     return null;
