@@ -11,6 +11,7 @@ export default function Register() {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
@@ -25,6 +26,19 @@ export default function Register() {
             setError(e instanceof Error ? e.message : 'Unable to register. Please try again.');
         },
     });
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setMessage('');
+
+        if (password !== confirmPassword) {
+            setError('Passwords do not match');
+            return;
+        }
+
+        mutation.mutate();
+    };
 
     return (
         <div className="app">
@@ -42,7 +56,7 @@ export default function Register() {
 
                 {/* ПРАВА ЧАСТИНА: Форма реєстрації */}
                 <div className="login-right">
-                    <form className="login-form" onSubmit={e => { e.preventDefault(); setError(''); mutation.mutate(); }}>
+                    <form className="login-form" onSubmit={submit}>
                         <h2>Create Account</h2>
 
                         <div className="input-group">
@@ -79,6 +93,16 @@ export default function Register() {
                                 placeholder="Password"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+
+                        <div className="input-group">
+                            <input
+                                type="password"
+                                placeholder="Confirm password"
+                                value={confirmPassword}
+                                onChange={e => setConfirmPassword(e.target.value)}
                                 required
                             />
                         </div>
