@@ -482,6 +482,43 @@ export default function Editor() {
 
             styleElement.textContent = fontFaceRules;
             document.head.appendChild(styleElement);
+            // Ensure fonts are ready, then force Konva layers to redraw so text uses the new fonts
+            if ((document as any).fonts && (document as any).fonts.load) {
+                try {
+                    const loads = customFonts.map((font) => (document as any).fonts.load(`1em "${font.name}"`));
+                    Promise.all(loads).then(() => {
+                        if (stageRef.current && typeof stageRef.current.getLayers === 'function') {
+                            const layers = stageRef.current.getLayers();
+                            if (Array.isArray(layers)) {
+                                layers.forEach((l: any) => { try { l.batchDraw(); } catch (e) { /* ignore */ } });
+                            }
+                        }
+                    }).catch(() => {
+                        // fallback: schedule a redraw shortly after
+                        setTimeout(() => {
+                            if (stageRef.current && typeof stageRef.current.getLayers === 'function') {
+                                const layers = stageRef.current.getLayers();
+                                if (Array.isArray(layers)) layers.forEach((l: any) => { try { l.batchDraw(); } catch (e) { } });
+                            }
+                        }, 200);
+                    });
+                } catch (err) {
+                    setTimeout(() => {
+                        if (stageRef.current && typeof stageRef.current.getLayers === 'function') {
+                            const layers = stageRef.current.getLayers();
+                            if (Array.isArray(layers)) layers.forEach((l: any) => { try { l.batchDraw(); } catch (e) { } });
+                        }
+                    }, 200);
+                }
+            } else {
+                // No FontFaceSet API: best-effort redraw
+                setTimeout(() => {
+                    if (stageRef.current && typeof stageRef.current.getLayers === 'function') {
+                        const layers = stageRef.current.getLayers();
+                        if (Array.isArray(layers)) layers.forEach((l: any) => { try { l.batchDraw(); } catch (e) { } });
+                    }
+                }, 200);
+            }
         }
     }, [fonts]);
 

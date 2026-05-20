@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface ShareModalProps {
   projectTitle: string;
   projectId: string;
@@ -8,7 +6,7 @@ interface ShareModalProps {
 
 export default function ShareModal({ projectTitle, projectId, onClose }: ShareModalProps) {
   const baseUrl = window.location.origin;
-  const shareUrl = `${baseUrl}/home?shared=${projectId}`;
+  const shareUrl = `${baseUrl}/editor/${projectId}`;
   const shareText = `Check out my design: ${projectTitle}`;
 
   const shareLinks = [
@@ -89,6 +87,9 @@ export default function ShareModal({ projectTitle, projectId, onClose }: ShareMo
         <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>
           Share "{projectTitle}"
         </h2>
+        <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>
+          This link opens the project editor for the project owner.
+        </p>
 
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>

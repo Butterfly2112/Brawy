@@ -1,6 +1,6 @@
-import { useState } from 'react'; // Додано useState
+import { useEffect, useState } from 'react'; // Додано useState
 import { useAuthStore } from '../store/auth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customFetch } from '../api/http';
 import Header from '../components/Header';
@@ -21,11 +21,28 @@ export interface ProjectCard {
 export default function Home() {
     const user = useAuthStore((s) => s.user);
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const queryClient = useQueryClient();
 
     // Стан для модального вікна видалення
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
+
+    useEffect(() => {
+        const sharedProjectId = searchParams.get('shared');
+
+        if (!sharedProjectId) {
+            return;
+        }
+
+        const projectId = Number(sharedProjectId);
+
+        if (Number.isNaN(projectId)) {
+            return;
+        }
+
+        navigate(`/editor/${projectId}`, { replace: true });
+    }, [navigate, searchParams]);
 
     const { data: projects, isLoading, isError } = useQuery<ProjectCard[]>({
         queryKey: ['projects'],
