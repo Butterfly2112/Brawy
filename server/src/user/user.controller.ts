@@ -41,7 +41,7 @@ export class UserController {
     private uploadService: UploadService,
   ) {}
 
-  @Throttle({ big: {} })
+  @Throttle({ default: { limit: 100, ttl: 60 * 1000 } })
   @Get('profile')
   @ApiOperation({ summary: 'Get user profile' })
   @ApiBearerAuth()
@@ -53,7 +53,7 @@ export class UserController {
     return await this.userService.getUserProfile(id);
   }
 
-  @Throttle({ small: {} })
+  @Throttle({ default: { limit: 10, ttl: 60 * 1000 } })
   @ApiOperation({ summary: 'Update username, email and/or avatar' })
   @ApiConsumes('multipart/form-data')
   @ApiBearerAuth()
@@ -97,7 +97,7 @@ export class UserController {
     description: 'Invalid token or data about new email is missing',
   })
   @ApiOkResponse({ description: 'Email was changed successfully.' })
-  @Throttle({ verySmall: {} })
+  @Throttle({ default: { limit: 5, ttl: 60 * 1000 } })
   @Patch('confirm-email-change')
   @HttpCode(HttpStatus.OK)
   async confirmEmailChange(@Query('token') token: string) {

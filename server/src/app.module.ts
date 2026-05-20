@@ -19,26 +19,6 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
         ttl: 60 * 1000,
         limit: 200,
       },
-      {
-        name: 'verySmall',
-        ttl: 60 * 1000,
-        limit: 5,
-      },
-      {
-        name: 'small',
-        ttl: 60 * 1000,
-        limit: 10,
-      },
-      {
-        name: 'medium',
-        ttl: 60 * 1000,
-        limit: 30,
-      },
-      {
-        name: 'big',
-        ttl: 60 * 1000,
-        limit: 100,
-      },
     ]),
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     PrismaModule,

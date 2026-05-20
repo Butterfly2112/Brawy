@@ -33,7 +33,7 @@ import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Font')
 @ApiBearerAuth()
-@Throttle({ small: {} })
+@Throttle({ default: { limit: 10, ttl: 60 * 1000 } })
 @Controller('font')
 @UseGuards(JwtAccessGuard)
 export class FontController {
@@ -41,7 +41,7 @@ export class FontController {
 
   @ApiOperation({ summary: 'Get all fonts (system + own)' })
   @ApiOkResponse({ type: SafeFontDto, isArray: true })
-  @Throttle({ medium: {} })
+  @Throttle({ default: { limit: 30, ttl: 60 * 1000 } })
   @Get()
   async getAllFonts(@CurrentUser('sub') userId: number) {
     return await this.fontService.getFonts(userId);
@@ -54,7 +54,7 @@ export class FontController {
     description:
       'File bigger than 5MB or Invalid file type. Only ttf, woff, woff2, and otf allowed',
   })
-  @Throttle({ verySmall: {} })
+  @Throttle({ default: { limit: 5, ttl: 60 * 1000 } })
   @UseInterceptors(FileInterceptor('file'))
   @HttpCode(HttpStatus.OK)
   @Post('create')

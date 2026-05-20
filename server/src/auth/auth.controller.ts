@@ -41,7 +41,7 @@ import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
-@Throttle({ verySmall: {} })
+@Throttle({ default: { limit: 5, ttl: 60 * 1000 } })
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -109,11 +109,13 @@ export class AuthController {
     return { message: 'Logged out successfully' };
   }
 
+  @SkipThrottle()
   @Get('google')
   @UseGuards(GoogleGuard)
   @ApiOperation({ summary: 'Login or register via Google' })
   async googleAuth() {}
 
+  @SkipThrottle()
   @Get('google/callback')
   @UseGuards(GoogleGuard)
   @ApiOperation({ summary: 'Google OAuth callback' })
@@ -136,7 +138,7 @@ export class AuthController {
     }
   }
 
-  @Throttle({ small: {} })
+  @Throttle({ default: { limit: 10, ttl: 60 * 1000 } })
   @Post('refresh')
   @UseGuards(JwtRefreshGuard)
   @ApiOperation({ summary: 'Refresh access token using refresh cookie' })
