@@ -38,8 +38,10 @@ import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { GoogleGuard } from './guards/google.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 @ApiTags('Auth')
+@Throttle({ verySmall: {} })
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -134,6 +136,7 @@ export class AuthController {
     }
   }
 
+  @Throttle({ small: {} })
   @Post('refresh')
   @UseGuards(JwtRefreshGuard)
   @ApiOperation({ summary: 'Refresh access token using refresh cookie' })

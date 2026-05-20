@@ -31,6 +31,7 @@ import { SafeUserDto } from 'src/auth/dto/auth-response.dto';
 import { UpdateUserDto, UpdateUserDtoD } from 'src/user/dto/update-user-dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from 'src/upload/upload.service';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('User')
 @Controller('user')
@@ -40,6 +41,7 @@ export class UserController {
     private uploadService: UploadService,
   ) {}
 
+  @Throttle({ big: {} })
   @Get('profile')
   @ApiOperation({ summary: 'Get user profile' })
   @ApiBearerAuth()
@@ -51,6 +53,7 @@ export class UserController {
     return await this.userService.getUserProfile(id);
   }
 
+  @Throttle({ small: {} })
   @ApiOperation({ summary: 'Update username, email and/or avatar' })
   @ApiConsumes('multipart/form-data')
   @ApiBearerAuth()
@@ -94,6 +97,7 @@ export class UserController {
     description: 'Invalid token or data about new email is missing',
   })
   @ApiOkResponse({ description: 'Email was changed successfully.' })
+  @Throttle({ verySmall: {} })
   @Patch('confirm-email-change')
   @HttpCode(HttpStatus.OK)
   async confirmEmailChange(@Query('token') token: string) {

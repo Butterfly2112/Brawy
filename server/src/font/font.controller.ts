@@ -29,9 +29,11 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SafeFontDto } from './dto/safe-font.dto';
 import { UploadFontDto, UploadFontDtoD } from './dto/upload-font.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Font')
 @ApiBearerAuth()
+@Throttle({ small: {} })
 @Controller('font')
 @UseGuards(JwtAccessGuard)
 export class FontController {
@@ -39,6 +41,7 @@ export class FontController {
 
   @ApiOperation({ summary: 'Get all fonts (system + own)' })
   @ApiOkResponse({ type: SafeFontDto, isArray: true })
+  @Throttle({ medium: {} })
   @Get()
   async getAllFonts(@CurrentUser('sub') userId: number) {
     return await this.fontService.getFonts(userId);
@@ -51,6 +54,7 @@ export class FontController {
     description:
       'File bigger than 5MB or Invalid file type. Only ttf, woff, woff2, and otf allowed',
   })
+  @Throttle({ verySmall: {} })
   @UseInterceptors(FileInterceptor('file'))
   @HttpCode(HttpStatus.OK)
   @Post('create')

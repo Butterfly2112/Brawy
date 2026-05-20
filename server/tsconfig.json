@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "types": ["node"],
     "strictPropertyInitialization": false,
     "module": "nodenext",
     "moduleResolution": "nodenext",

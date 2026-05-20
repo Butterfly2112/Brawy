@@ -43,8 +43,10 @@ import {
   UpdateProjectDtoD,
 } from './dto/update-project.dto';
 import { OptionalAuth } from 'src/auth/decorators/optional-auth.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Project')
+@Throttle({ big: {} })
 @UseGuards(JwtAccessGuard)
 @ApiBearerAuth()
 @Controller('project')
@@ -88,6 +90,7 @@ export class ProjectController {
   @ApiNotFoundResponse({ description: 'Template not found' })
   @ApiForbiddenResponse({ description: 'No access to this template' })
   @ApiOkResponse({ type: SafeProjectDto })
+  @Throttle({ medium: {} })
   @Post('create')
   @UseInterceptors(FileInterceptor('file'))
   async createNewProject(
@@ -136,6 +139,7 @@ export class ProjectController {
   @ApiNotFoundResponse({ description: 'Project not found' })
   @ApiForbiddenResponse({ description: 'Access denied' })
   @ApiOkResponse({ type: SafeProjectDto })
+  @Throttle({ medium: {} })
   @Patch(':id')
   @UseInterceptors(FileInterceptor('file'))
   async updateProject(
@@ -158,6 +162,7 @@ export class ProjectController {
   @ApiNotFoundResponse({ description: 'Project not found' })
   @ApiForbiddenResponse({ description: 'Access denied' })
   @ApiOkResponse({ description: 'Project was deleted successfully' })
+  @Throttle({ medium: {} })
   @Delete(':id')
   async deleteProject(
     @CurrentUser('sub') userId: number,
@@ -192,6 +197,7 @@ export class ProjectController {
   })
   @ApiForbiddenResponse({ description: 'Access denied' })
   @ApiOkResponse({ type: SafeProjectDto })
+  @Throttle({ medium: {} })
   @Patch(':id/restore-version')
   async restoreVersion(
     @Param('id', ParseIntPipe) projectId: number,
@@ -211,7 +217,7 @@ export class ProjectController {
   @ApiForbiddenResponse({ description: 'Access denied' })
   @ApiOkResponse({ type: SafeAssetDto, isArray: true })
   @Get(':id/assets')
-  async getProjectAssync(
+  async getProjectAssets(
     @CurrentUser('sub') userId: number,
     @Param('id', ParseIntPipe) projectId: number,
   ) {
@@ -225,6 +231,7 @@ export class ProjectController {
   @ApiForbiddenResponse({ description: 'Access denied' })
   @ApiBadRequestResponse({ description: 'File is required' })
   @ApiOkResponse({ type: SafeAssetDto })
+  @Throttle({ small: {} })
   @UseInterceptors(FileInterceptor('file'))
   @Post(':id/assets')
   async uploadAsset(
@@ -248,6 +255,7 @@ export class ProjectController {
   @ApiConflictResponse({ description: 'Project already shared' })
   @ApiNotFoundResponse({ description: 'Project not found' })
   @ApiForbiddenResponse({ description: 'Access denied' })
+  @Throttle({ medium: {} })
   @Patch(':id/share')
   async shareProject(
     @CurrentUser('sub') userId: number,
@@ -265,6 +273,7 @@ export class ProjectController {
   @ApiConflictResponse({ description: 'Project not shared already' })
   @ApiNotFoundResponse({ description: 'Project not found' })
   @ApiForbiddenResponse({ description: 'Access denied' })
+  @Throttle({ medium: {} })
   @Patch(':id/unshare')
   async unshareProject(
     @CurrentUser('sub') userId: number,
@@ -293,6 +302,7 @@ export class ProjectController {
   @ApiNotFoundResponse({ description: 'Asset not found' })
   @ApiForbiddenResponse({ description: 'Access denied' })
   @ApiOkResponse({ description: 'Asset deleted successfully' })
+  @Throttle({ small: {} })
   @Delete('assets/:id')
   async deleteAsset(
     @CurrentUser('sub') userId: number,

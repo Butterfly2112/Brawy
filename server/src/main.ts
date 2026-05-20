@@ -41,6 +41,8 @@ async function bootstrap() {
     useGlobalPrefix: true,
   });
 
+  app.set('trust proxy', 'loopback');
+
   await app.listen(process.env.BACKEND_PORT ?? 3000);
 }
 bootstrap();
