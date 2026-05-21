@@ -448,7 +448,16 @@ export default function Editor() {
     });
 
     useEffect(() => {
-        if (project && loadedProjectIdRef.current !== project.id) {
+        if (!project) return;
+
+        // If project is shared but user is not authenticated,
+        // block access on the frontend and redirect to login.
+        if ((project as any).isShared && !user) {
+            navigate(`/login?next=/editor/${id}`);
+            return;
+        }
+
+        if (loadedProjectIdRef.current !== project.id) {
             applyProjectState(project);
         }
     }, [project, applyProjectState]);
