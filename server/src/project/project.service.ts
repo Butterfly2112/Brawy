@@ -41,6 +41,8 @@ export class ProjectService {
     const user = await this.userService.findById(userId);
 
     let initialCanvasData: object = EMPTY_CANVAS;
+    let finalWidth = dto.width ?? 800;
+    let finalHeight = dto.height ?? 600;
 
     if (dto.sourceTemplateId) {
       const template = await this.prisma.project.findUnique({
@@ -61,6 +63,8 @@ export class ProjectService {
       }
 
       initialCanvasData = template.canvas_data as object;
+      finalWidth = dto.width ?? template.width;
+      finalHeight = dto.height ?? template.height;
     }
 
     const project = await this.prisma.project.create({
@@ -68,8 +72,8 @@ export class ProjectService {
         title: dto.title,
         description: dto.description,
         canvas_data: dto.canvasData ?? initialCanvasData,
-        width: dto.width ?? 800,
-        height: dto.height ?? 600,
+        width: finalWidth,
+        height: finalHeight,
         thumbnail_url: dto.thumbnailUrl,
         thumbnail_public_id: dto.thumbnail_public_id,
         is_template: false,
