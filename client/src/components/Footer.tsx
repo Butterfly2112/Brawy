@@ -34,6 +34,7 @@ export default function Footer() {
                         <Link to="/templates">Templates</Link>
                         <Link to="/projects">My projects</Link>
                         <Link to="/about">About us</Link>
+                        <Link to="/future-guide">Instruction</Link>
                     </nav>
                 </div>
 

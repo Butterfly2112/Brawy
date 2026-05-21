@@ -22,6 +22,7 @@ import About from './pages/About';
 import Editor from "./pages/Editor.tsx";
 import Templates from './pages/Templates';
 import Publications from './pages/Publications';
+import FutureGuide from './pages/FutureGuide';
 import ConfirmEmailChange from "./pages/ConfirmEmailChange.tsx";
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -78,6 +79,7 @@ export default function App() {
                 <Route path="/publications" element={<Publications />} />
                 <Route path="/editor/:id" element={<Editor />} />
                 <Route path="/templates" element={<Templates />} />
+                <Route path="/future-guide" element={<FutureGuide />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
                 <Route path="/email-confirmed" element={<EmailConfirmed />} />
@@ -95,6 +97,7 @@ export default function App() {
                 <Route path="/confirm-email" element={<ConfirmEmailRedirect />} />
                 <Route path="/google-login" element={<GoogleLogin />} />
                 <Route path="/about" element={<About />} />
+                <Route path="/future-guide" element={<FutureGuide />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </>
             )}
