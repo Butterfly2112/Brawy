@@ -151,6 +151,7 @@ export default function Header() {
                     <nav className="nav-links">
                         <Link to="/templates">Templates</Link>
                         <Link to="/home">Projects</Link>
+                        <Link to="/publications">My Publications</Link>
                         <Link to="/about">About us</Link>
                     </nav>
                 </div>

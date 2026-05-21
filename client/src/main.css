@@ -440,6 +440,13 @@ a {
     padding: 20px 20px;
 }
 
+/* Page header padding for Publications and similar pages */
+.page-header {
+    padding: 28px 24px 12px; /* top, sides, bottom */
+}
+.page-title { margin: 0; font-size: 28px; color: var(--primary-color); font-weight: 800; }
+.page-subtitle { margin-top: 8px; color: var(--secondary-color); font-size: 15px; }
+
 .project-card {
     background: white;
     border-radius: var(--radius-md);
@@ -510,6 +517,23 @@ a {
 .project-card:hover .project-overlay { opacity: 1; }
 .project-info { padding: 12px; background: white; border-top: 1px solid #eee; text-align: center; }
 .project-name { font-size: 14px; font-weight: 600; color: var(--primary-color); }
+
+/* Publications list tweaks */
+.projects-list .project-card { aspect-ratio: auto; box-shadow: none; display: flex; align-items: center; }
+.projects-list .project-card:hover { transform: none; box-shadow: var(--shadow-sm); }
+.project-desc { color: var(--text-muted); margin-top: 2px; max-width: 520px; }
+.project-meta { color: var(--text-muted); font-size: 13px; }
+
+/* Compact square preview for Publications list */
+.pub-preview { width: 72px; height: 72px; }
+.pub-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Ensure publications preview overrides generic project-preview-container sizing */
+.project-preview-container.pub-preview {
+    width: 72px;
+    height: 72px;
+    flex: 0 0 72px;
+}
 
 /* ABOUT */
 .about-page {

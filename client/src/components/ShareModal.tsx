@@ -1,3 +1,6 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { customFetch } from '../api/http';
+
 interface ShareModalProps {
   projectTitle: string;
   projectId: string;
@@ -8,6 +11,43 @@ export default function ShareModal({ projectTitle, projectId, onClose }: ShareMo
   const baseUrl = window.location.origin;
   const shareUrl = `${baseUrl}/editor/${projectId}`;
   const shareText = `Check out my design: ${projectTitle}`;
+  const queryClient = useQueryClient();
+
+  const { data: project, isLoading: isProjectLoading } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: async () => {
+      const res = await customFetch(`/api/project/${projectId}`);
+      if (!res.ok) throw new Error('Failed to load project');
+      return res.json();
+    },
+    enabled: !!projectId,
+  });
+
+  const isShared = Boolean(project?.isShared);
+
+  const shareMutation = useMutation({
+    mutationFn: async () => {
+      const res = await customFetch(`/api/project/${projectId}/share`, { method: 'PATCH' });
+      if (!res.ok) throw new Error('Failed to share');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+
+  const unshareMutation = useMutation({
+    mutationFn: async () => {
+      const res = await customFetch(`/api/project/${projectId}/unshare`, { method: 'PATCH' });
+      if (!res.ok) throw new Error('Failed to unshare');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
 
   const shareLinks = [
     {
@@ -90,6 +130,35 @@ export default function ShareModal({ projectTitle, projectId, onClose }: ShareMo
         <p style={{ margin: '0 0 16px 0', fontSize: '12px', color: '#64748b', lineHeight: 1.5 }}>
           This link opens the project editor for the project owner.
         </p>
+
+        <div style={{ marginBottom: 12 }}>
+          {isProjectLoading ? (
+            <div style={{ fontSize: 12, color: '#64748b' }}>Loading project status...</div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ fontSize: 13, color: isShared ? '#047857' : '#374151' }}>
+                {isShared ? 'Project is public' : 'Project is private'}
+              </div>
+              {isShared ? (
+                <button
+                  onClick={() => unshareMutation.mutate()}
+                  disabled={unshareMutation.status === 'pending'}
+                  style={{ padding: '6px 10px', borderRadius: 6, background: '#ef4444', color: '#fff', border: 'none', cursor: 'pointer' }}
+                >
+                  {unshareMutation.status === 'pending' ? 'Making private...' : 'Make private'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => shareMutation.mutate()}
+                  disabled={shareMutation.status === 'pending'}
+                  style={{ padding: '6px 10px', borderRadius: 6, background: '#10b981', color: '#fff', border: 'none', cursor: 'pointer' }}
+                >
+                  {shareMutation.status === 'pending' ? 'Making public...' : 'Make public'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>

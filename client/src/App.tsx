@@ -21,6 +21,7 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Editor from "./pages/Editor.tsx";
 import Templates from './pages/Templates';
+import Publications from './pages/Publications';
 import ConfirmEmailChange from "./pages/ConfirmEmailChange.tsx";
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -74,6 +75,7 @@ export default function App() {
             {user ? (
               <>
                 <Route path="/home" element={<Home />} />
+                <Route path="/publications" element={<Publications />} />
                 <Route path="/editor/:id" element={<Editor />} />
                 <Route path="/templates" element={<Templates />} />
                 <Route path="/about" element={<About />} />
@@ -87,6 +89,7 @@ export default function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/reset-password-request" element={<ResetPasswordRequest />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/editor/:id" element={<Editor />} />
                 <Route path="/email-confirmed" element={<EmailConfirmed />} />
                 <Route path="/confirm-email-change" element={<ConfirmEmailChange />} />
                 <Route path="/confirm-email" element={<ConfirmEmailRedirect />} />
