@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { jsPDF } from 'jspdf';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 import { customFetch } from '../api/http';
 import { useAuthStore } from '../store/auth';
 import WorkspaceCanvas, { type CanvasElementProps } from '../components/WorkspaceCanvas';
@@ -459,20 +461,98 @@ export default function Editor() {
         enabled: showTemplateMenu,
     });
 
+    const [isPublicView, setIsPublicView] = useState(false);
+    const [publicPreviewUrl, setPublicPreviewUrl] = useState<string | undefined>(undefined);
+
     useEffect(() => {
         if (!project) return;
 
         // If project is shared but user is not authenticated,
-        // block access on the frontend and redirect to login.
+        // show simplified public view (header, footer and centered preview) instead of redirect.
         if ((project as any).isShared && !user) {
-            navigate(`/login?next=/editor/${id}`);
+            setIsPublicView(true);
+
+            // prefer thumbnail if available
+            const thumbnail = (project as any).thumbnailUrl;
+            if (thumbnail) {
+                setPublicPreviewUrl(thumbnail);
+            } else if (project.canvasData) {
+                try {
+                    const parsed = typeof project.canvasData === 'string' ? JSON.parse(project.canvasData) : project.canvasData;
+                    const svg = buildSvgMarkup({
+                        width: project.width || 800,
+                        height: project.height || 600,
+                        backgroundColor: parsed?.attrs?.backgroundColor || '#ffffff',
+                        elements: Array.isArray(parsed?.children) ? parsed.children : [],
+                    });
+                    setPublicPreviewUrl('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
+                } catch (e) {
+                    // ignore
+                }
+            }
+
             return;
         }
+
+        setIsPublicView(false);
 
         if (loadedProjectIdRef.current !== project.id) {
             applyProjectState(project);
         }
-    }, [project, applyProjectState]);
+    }, [project, applyProjectState, user]);
+
+    const exportProjectPdf = async () => {
+        if (!project) return;
+
+        // Build SVG from project data and render to canvas for PDF
+        try {
+            const parsed = typeof project.canvasData === 'string' ? JSON.parse(project.canvasData) : project.canvasData;
+            const svgMarkup = buildSvgMarkup({
+                width: project.width || 800,
+                height: project.height || 600,
+                backgroundColor: parsed?.attrs?.backgroundColor || '#ffffff',
+                elements: Array.isArray(parsed?.children) ? parsed.children : [],
+            });
+
+            const img = new Image();
+            const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+
+            // Ensure fonts are ready before rasterizing SVG into canvas — prevents text shifts
+            if ((document as any).fonts && (document as any).fonts.ready) {
+                try {
+                    await (document as any).fonts.ready;
+                } catch (e) {
+                    // ignore font loading errors and proceed
+                }
+            }
+
+            await new Promise<void>((resolve, reject) => {
+                img.onload = () => resolve();
+                img.onerror = () => reject(new Error('Failed to load SVG image'));
+                img.src = url;
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = project.width || 800;
+            canvas.height = project.height || 600;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Canvas not supported');
+            ctx.fillStyle = parsed?.attrs?.backgroundColor || '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const dataUrl = canvas.toDataURL('image/png');
+            const orientation = (project.width || 800) >= (project.height || 600) ? 'landscape' : 'portrait';
+            const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height] });
+            pdf.addImage(dataUrl, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`${createSafeFilename(project.title || 'project')}.pdf`);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Export PDF failed', err);
+            alert('Failed to create PDF');
+        }
+    };
 
     useEffect(() => {
         if (!showExportMenu) return;
@@ -1346,6 +1426,29 @@ export default function Editor() {
             <button className="button-agree" onClick={() => navigate('/home')}>Go to Dashboard</button>
         </div>
     );
+
+    if (isPublicView && project) {
+        return (
+            <div>
+                <Header />
+                <main style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
+                    <div style={{ textAlign: 'center' }}>
+                        {publicPreviewUrl ? (
+                            // use img tag for both raster and svg data urls
+                            <img src={publicPreviewUrl} alt={project.title || 'Preview'} style={{ maxWidth: '90vw', maxHeight: '70vh', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }} />
+                        ) : (
+                            <div style={{ padding: 40, border: '1px dashed #e5e7eb' }}>Preview not available</div>
+                        )}
+
+                        <div style={{ marginTop: 20 }}>
+                            <button className="button-agree" onClick={exportProjectPdf}>Download PDF</button>
+                        </div>
+                    </div>
+                </main>
+                <Footer />
+            </div>
+        );
+    }
 
     return (
         <div className="editor-layout">
