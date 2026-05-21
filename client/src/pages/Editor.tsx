@@ -1651,18 +1651,28 @@ export default function Editor() {
                                                         <div style={{ fontSize: 13 }}>{tpl.title}</div>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: 6 }}>
-                                                        <button className="button-secondary" onClick={() => {
-                                                            const canvas = tpl.canvas || tpl.canvas_data || tpl.canvasData || {};
-                                                            const snap: EditorSnapshot = {
-                                                                title: tpl.title || 'Template',
-                                                                canvasWidth: canvas.width || tpl.width || 800,
-                                                                canvasHeight: canvas.height || tpl.height || 600,
-                                                                canvasBgColor: canvas.background || '#ffffff',
-                                                                elements: Array.isArray(canvas.elements) ? canvas.elements : [],
-                                                            };
-                                                            applyEditorSnapshot(snap);
-                                                            setTemplateMessage({ text: 'Template applied to canvas', type: 'success' });
-                                                            setTimeout(() => setTemplateMessage(null), 2000);
+                                                        <button className="button-secondary" onClick={async () => {
+                                                            setTemplateMessage({ text: 'Creating project from template...', type: 'success' });
+                                                            try {
+                                                                const formData = new FormData();
+                                                                formData.append('title', tpl.title || 'New Project from Template');
+                                                                formData.append('sourceTemplateId', String(tpl.id));
+
+                                                                const resp = await customFetch('/api/project/create', {
+                                                                    method: 'POST',
+                                                                    body: formData,
+                                                                });
+
+                                                                if (!resp.ok) throw new Error('Failed to create project from template');
+                                                                const newProject = await resp.json();
+
+                                                                // navigate to new project editor
+                                                                navigate(`/editor/${newProject.id}`);
+                                                            } catch (err) {
+                                                                console.error('Create-from-template failed:', err);
+                                                                setTemplateMessage({ text: 'Failed to apply template', type: 'error' });
+                                                                setTimeout(() => setTemplateMessage(null), 2000);
+                                                            }
                                                         }}>Apply</button>
                                                     </div>
                                                 </div>

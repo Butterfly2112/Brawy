@@ -372,12 +372,15 @@ export default function WorkspaceCanvas({
         const stage = e.target.getStage();
         // start panning when clicking/tapping on empty stage (not in draw mode)
         if (mode !== 'draw') {
-            if (e.target === stage) {
+                if (e.target === stage) {
                 setSelectedId(null);
                 setEditingTextId(null);
                 isPanning.current = true;
                 lastPanPos.current = stage.getPointerPosition() || null;
-                try { stage.container().style.cursor = 'grabbing'; } catch {}
+                const container = stage ? stage.container() : null;
+                if (container && (container as HTMLElement).style) {
+                    (container as HTMLElement).style.cursor = 'grabbing';
+                }
                 return;
             }
             return;
@@ -407,13 +410,16 @@ export default function WorkspaceCanvas({
         const pos = stage?.getPointerPosition();
 
         // handle panning when user grabbed empty stage
-        if (isPanning.current && mode !== 'draw') {
+            if (isPanning.current && mode !== 'draw') {
             if (!pos || !lastPanPos.current) return;
             const dx = pos.x - lastPanPos.current.x;
             const dy = pos.y - lastPanPos.current.y;
             setStagePos(prev => ({ x: prev.x + dx, y: prev.y + dy }));
             lastPanPos.current = pos;
-            try { stage.container().style.cursor = 'grabbing'; } catch {}
+            const container = stage ? stage.container() : null;
+            if (container && (container as HTMLElement).style) {
+                (container as HTMLElement).style.cursor = 'grabbing';
+            }
             return;
         }
 
@@ -442,7 +448,11 @@ export default function WorkspaceCanvas({
         isDrawing.current = false;
         isPanning.current = false;
         lastPanPos.current = null;
-        try { const stage = stageRef.current; if (stage) stage.container().style.cursor = ''; } catch {}
+        const stage = stageRef.current;
+        const container = stage ? stage.container() : null;
+        if (container && (container as HTMLElement).style) {
+            (container as HTMLElement).style.cursor = '';
+        }
     };
     const handleElementChange = (index: number, newProps: CanvasElementProps) => { const newElements = [...elements]; newElements[index] = newProps; setElements(newElements); };
 
@@ -604,7 +614,7 @@ export default function WorkspaceCanvas({
                 y={stagePos.y}
                 onWheel={handleWheel}
 
-                onMouseDown={handleMouseDown} onMousemove={handleMouseMove} onMouseup={handleMouseUp}
+                onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
                 onTouchStart={handleMouseDown} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}
             >
                 <Layer>
