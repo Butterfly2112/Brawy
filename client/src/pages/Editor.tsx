@@ -113,29 +113,43 @@ const buildSvgMarkup = (params: {
 
         if (element.type === 'shape') {
             const fill = escapeXml(element.fill ?? '#cbd5e1');
-            const x = Number(element.x ?? 0);
-            const y = Number(element.y ?? 0);
             const widthValue = Number(element.width ?? element.baseWidth ?? 150);
             const heightValue = Number(element.height ?? element.baseHeight ?? 150);
 
+            // For some shapes (triangle, star) WorkspaceCanvas uses center origin (x,y are center).
+            // For rect/ellipse x,y are top-left.
             if (element.shapeType === 'rect') {
+                const x = Number(element.x ?? 0);
+                const y = Number(element.y ?? 0);
                 const cornerRadius = Number(element.cornerRadius ?? 0);
-                return `<rect x="${formatNumber(x)}" y="${formatNumber(y)}" width="${formatNumber(widthValue)}" height="${formatNumber(heightValue)}" rx="${formatNumber(cornerRadius)}" ry="${formatNumber(cornerRadius)}" fill="${fill}" />`;
+                return `<rect x="${formatNumber(x)}" y="${formatNumber(y)}" width="${formatNumber(widthValue)}" height="${formatNumber(heightValue)}" rx="${formatNumber(cornerRadius)}" ry="${formatNumber(cornerRadius)}" fill="${fill}" transform="${element.rotation ? `rotate(${formatNumber(element.rotation)} ${formatNumber(x + widthValue/2)} ${formatNumber(y + heightValue/2)})` : ''}" />`;
             }
 
             if (element.shapeType === 'ellipse') {
-                return `<ellipse cx="${formatNumber(x + widthValue / 2)}" cy="${formatNumber(y + heightValue / 2)}" rx="${formatNumber(widthValue / 2)}" ry="${formatNumber(heightValue / 2)}" fill="${fill}" />`;
+                const x = Number(element.x ?? 0);
+                const y = Number(element.y ?? 0);
+                return `<ellipse cx="${formatNumber(x + widthValue / 2)}" cy="${formatNumber(y + heightValue / 2)}" rx="${formatNumber(widthValue / 2)}" ry="${formatNumber(heightValue / 2)}" fill="${fill}" transform="${element.rotation ? `rotate(${formatNumber(element.rotation)} ${formatNumber(x + widthValue/2)} ${formatNumber(y + heightValue/2)})` : ''}" />`;
             }
 
             if (element.shapeType === 'triangle') {
-                return `<polygon points="${buildTrianglePoints(x, y, widthValue, heightValue)}" fill="${fill}" />`;
+                const cx = Number(element.x ?? 0);
+                const cy = Number(element.y ?? 0);
+                const rx = widthValue / 2;
+                const ry = heightValue / 2;
+                const top = `${formatNumber(cx)} ${formatNumber(cy - ry)}`;
+                const left = `${formatNumber(cx - rx)} ${formatNumber(cy + ry)}`;
+                const right = `${formatNumber(cx + rx)} ${formatNumber(cy + ry)}`;
+                const points = `${top} ${left} ${right}`;
+                return `<polygon points="${points}" fill="${fill}" transform="${element.rotation ? `rotate(${formatNumber(element.rotation)} ${formatNumber(cx)} ${formatNumber(cy)})` : ''}" />`;
             }
 
             if (element.shapeType === 'star') {
+                const cx = Number(element.x ?? 0);
+                const cy = Number(element.y ?? 0);
                 const outerRadius = Math.max(5, Math.min(widthValue, heightValue) / 2);
                 const innerRadius = Number(element.innerRadius ?? outerRadius * 0.45);
                 const points = Number(element.numPoints ?? 5);
-                return `<polygon points="${buildStarPoints(x + widthValue / 2, y + heightValue / 2, outerRadius, innerRadius, points)}" fill="${fill}" />`;
+                return `<polygon points="${buildStarPoints(cx, cy, outerRadius, innerRadius, points)}" fill="${fill}" transform="${element.rotation ? `rotate(${formatNumber(element.rotation)} ${formatNumber(cx)} ${formatNumber(cy)})` : ''}" />`;
             }
         }
 
@@ -143,12 +157,17 @@ const buildSvgMarkup = (params: {
             const points = Array.isArray(element.points) ? element.points : [];
             if (points.length < 4) return '';
 
+            const xOffset = Number(element.x ?? 0);
+            const yOffset = Number(element.y ?? 0);
+
             const strokeColor = escapeXml(element.tool === 'eraser' ? backgroundColor : (element.stroke ?? '#000000'));
             const strokeWidth = Number(element.strokeWidth ?? 5);
             const dashArray = Array.isArray(element.dash) && element.dash.length > 0 ? ` stroke-dasharray="${element.dash.join(' ')}"` : '';
             const pathPoints = (points as number[]).reduce((acc: string[], point: number, index: number) => {
                 if (index % 2 === 0) {
-                    acc.push(`${formatNumber(point)},${formatNumber(points[index + 1] ?? point)}`);
+                    const x = point + xOffset;
+                    const y = (points[index + 1] ?? point) + yOffset;
+                    acc.push(`${formatNumber(x)},${formatNumber(y)}`);
                 }
                 return acc;
             }, []).join(' ');
@@ -935,26 +954,66 @@ export default function Editor() {
                 transformer.getLayer()?.batchDraw();
             }
 
-            const stageCanvas = stageRef.current.toCanvas({
-                pixelRatio: 2,
-                x: 0,
-                y: 0,
-                width: canvasWidth,
-                height: canvasHeight,
-            });
+            // Save current transform/position and reset to identity so export
+            // captures the whole logical canvas (not the zoomed/panned viewport).
+            const prevScaleX = typeof stageRef.current.scaleX === 'function' ? stageRef.current.scaleX() : 1;
+            const prevScaleY = typeof stageRef.current.scaleY === 'function' ? stageRef.current.scaleY() : 1;
+            const prevX = typeof stageRef.current.x === 'function' ? stageRef.current.x() : 0;
+            const prevY = typeof stageRef.current.y === 'function' ? stageRef.current.y() : 0;
 
-            const composedCanvas = document.createElement('canvas');
-            composedCanvas.width = stageCanvas.width;
-            composedCanvas.height = stageCanvas.height;
+            try {
+                if (typeof stageRef.current.scale === 'function') {
+                    stageRef.current.scale({ x: 1, y: 1 });
+                } else if (typeof stageRef.current.setScale === 'function') {
+                    stageRef.current.setScale(1);
+                }
+                if (typeof stageRef.current.position === 'function') {
+                    stageRef.current.position({ x: 0, y: 0 });
+                } else {
+                    if (typeof stageRef.current.x === 'function') stageRef.current.x(0);
+                    if (typeof stageRef.current.y === 'function') stageRef.current.y(0);
+                }
+                stageRef.current.batchDraw?.();
 
-            const context = composedCanvas.getContext('2d');
-            if (!context) return undefined;
+                const stageCanvas = stageRef.current.toCanvas({
+                    pixelRatio: 2,
+                    x: 0,
+                    y: 0,
+                    width: canvasWidth,
+                    height: canvasHeight,
+                });
 
-            context.fillStyle = canvasBgColor;
-            context.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
-            context.drawImage(stageCanvas, 0, 0);
+                const composedCanvas = document.createElement('canvas');
+                composedCanvas.width = stageCanvas.width;
+                composedCanvas.height = stageCanvas.height;
 
-            return composedCanvas;
+                const context = composedCanvas.getContext('2d');
+                if (!context) return undefined;
+
+                context.fillStyle = canvasBgColor;
+                context.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
+                context.drawImage(stageCanvas, 0, 0);
+
+                return composedCanvas;
+            } finally {
+                // Restore previous transform and position
+                try {
+                    if (typeof stageRef.current.scale === 'function') {
+                        stageRef.current.scale({ x: prevScaleX, y: prevScaleY });
+                    } else if (typeof stageRef.current.setScale === 'function') {
+                        stageRef.current.setScale(prevScaleX);
+                    }
+                    if (typeof stageRef.current.position === 'function') {
+                        stageRef.current.position({ x: prevX, y: prevY });
+                    } else {
+                        if (typeof stageRef.current.x === 'function') stageRef.current.x(prevX);
+                        if (typeof stageRef.current.y === 'function') stageRef.current.y(prevY);
+                    }
+                    stageRef.current.batchDraw?.();
+                } catch (e) {
+                    // ignore restore errors
+                }
+            }
         } finally {
             if (transformer) {
                 transformer.visible(previousVisible ?? true);
@@ -987,6 +1046,57 @@ export default function Editor() {
     };
 
     const exportCanvasAsSvg = () => {
+        // Reset stage transform so SVG is built from logical canvas coordinates
+        if (stageRef.current) {
+            const prevScaleX = typeof stageRef.current.scaleX === 'function' ? stageRef.current.scaleX() : 1;
+            const prevScaleY = typeof stageRef.current.scaleY === 'function' ? stageRef.current.scaleY() : 1;
+            const prevX = typeof stageRef.current.x === 'function' ? stageRef.current.x() : 0;
+            const prevY = typeof stageRef.current.y === 'function' ? stageRef.current.y() : 0;
+
+            try {
+                if (typeof stageRef.current.scale === 'function') {
+                    stageRef.current.scale({ x: 1, y: 1 });
+                } else if (typeof stageRef.current.setScale === 'function') {
+                    stageRef.current.setScale(1);
+                }
+                if (typeof stageRef.current.position === 'function') {
+                    stageRef.current.position({ x: 0, y: 0 });
+                } else {
+                    if (typeof stageRef.current.x === 'function') stageRef.current.x(0);
+                    if (typeof stageRef.current.y === 'function') stageRef.current.y(0);
+                }
+                stageRef.current.batchDraw?.();
+
+                const svgMarkup = buildSvgMarkup({
+                    width: canvasWidth,
+                    height: canvasHeight,
+                    backgroundColor: canvasBgColor,
+                    elements,
+                });
+
+                const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+                downloadBlob(blob, `${createSafeFilename(title)}.svg`);
+            } finally {
+                try {
+                    if (typeof stageRef.current.scale === 'function') {
+                        stageRef.current.scale({ x: prevScaleX, y: prevScaleY });
+                    } else if (typeof stageRef.current.setScale === 'function') {
+                        stageRef.current.setScale(prevScaleX);
+                    }
+                    if (typeof stageRef.current.position === 'function') {
+                        stageRef.current.position({ x: prevX, y: prevY });
+                    } else {
+                        if (typeof stageRef.current.x === 'function') stageRef.current.x(prevX);
+                        if (typeof stageRef.current.y === 'function') stageRef.current.y(prevY);
+                    }
+                    stageRef.current.batchDraw?.();
+                } catch (e) {
+                    // ignore restore errors
+                }
+            }
+            return;
+        }
+
         const svgMarkup = buildSvgMarkup({
             width: canvasWidth,
             height: canvasHeight,
