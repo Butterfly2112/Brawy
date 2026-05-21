@@ -52,7 +52,7 @@ export default function ShareModal({ projectTitle, projectId, onClose }: ShareMo
   const shareLinks = [
     {
       name: 'Facebook',
-      icon: '📘',
+      icon: '/facebook.png',
       url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`,
       color: '#1877f2'
     },
@@ -64,15 +64,9 @@ export default function ShareModal({ projectTitle, projectId, onClose }: ShareMo
     },
     {
       name: 'LinkedIn',
-      icon: '💼',
+      icon: '/linkedin.png',
       url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
       color: '#0a66c2'
-    },
-    {
-      name: 'Pinterest',
-      icon: '📌',
-      url: `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(shareUrl)}&description=${encodeURIComponent(shareText)}`,
-      color: '#e60023'
     },
     {
       name: 'WhatsApp',
@@ -82,7 +76,7 @@ export default function ShareModal({ projectTitle, projectId, onClose }: ShareMo
     },
     {
       name: 'Telegram',
-      icon: '✈️',
+      icon: '/Telegram.png',
       url: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
       color: '#0088cc'
     }
@@ -235,7 +229,15 @@ export default function ShareModal({ projectTitle, projectId, onClose }: ShareMo
                   e.currentTarget.style.transform = 'scale(1)';
                 }}
               >
-                <span style={{ fontSize: '20px' }}>{link.icon}</span>
+                {link.icon.startsWith('/') ? (
+                  <img
+                    src={link.icon}
+                    alt={link.name}
+                    style={{ width: 20, height: 20, objectFit: 'contain' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: '20px' }}>{link.icon}</span>
+                )}
                 {link.name}
               </button>
             ))}

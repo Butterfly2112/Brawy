@@ -30,9 +30,17 @@ export default function Header() {
     const [updateError, setUpdateError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
-    const handleLogout = () => {
-        clearAuth();
-        navigate('/login');
+    const handleLogout = async () => {
+        try {
+            await customFetch('/api/auth/logout', {
+                method: 'POST',
+            });
+        } catch (error) {
+            console.error('Logout request failed:', error);
+        } finally {
+            clearAuth();
+            navigate('/login');
+        }
     };
 
     const openEditModal = () => {
