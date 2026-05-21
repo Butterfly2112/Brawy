@@ -414,6 +414,26 @@ export default function Editor() {
         enabled: !!id && id !== 'new',
     });
 
+    const buildFontFaceRules = (fonts: Array<{ name?: string; url?: string; format?: string }>) => {
+        if (!Array.isArray(fonts) || fonts.length === 0) return '';
+
+        const formatMap: { [k: string]: string } = {
+            'truetype': 'truetype',
+            'woff': 'woff',
+            'woff2': 'woff2',
+            'opentype': 'opentype',
+        };
+
+        const rules = fonts.map(f => {
+            if (!f || !f.name || !f.url) return '';
+            const fmt = formatMap[(f.format || '').toLowerCase()] || 'truetype';
+            return `@font-face { font-family: "${f.name}"; src: url("${f.url}") format("${fmt}"); font-display: swap; }`;
+        }).filter(Boolean).join('\n');
+
+        if (!rules) return '';
+        return `<style type="text/css"><![CDATA[\n${rules}\n]]></style>`;
+    };
+
     const {
         data: historyVersions = [],
         isLoading: isHistoryLoading,
@@ -485,7 +505,9 @@ export default function Editor() {
                         backgroundColor: parsed?.attrs?.backgroundColor || '#ffffff',
                         elements: Array.isArray(parsed?.children) ? parsed.children : [],
                     });
-                    setPublicPreviewUrl('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
+                    const fontRules = buildFontFaceRules(fonts);
+                    const svgWithFonts = fontRules ? svg.replace('<defs>', `<defs>\n${fontRules}`) : svg;
+                    setPublicPreviewUrl('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgWithFonts));
                 } catch (e) {
                     // ignore
                 }
@@ -514,8 +536,11 @@ export default function Editor() {
                 elements: Array.isArray(parsed?.children) ? parsed.children : [],
             });
 
+            const fontRules = buildFontFaceRules(fonts);
+            const finalSvg = fontRules ? svgMarkup.replace('<defs>', `<defs>\n${fontRules}`) : svgMarkup;
+
             const img = new Image();
-            const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+            const svgBlob = new Blob([finalSvg], { type: 'image/svg+xml;charset=utf-8' });
             const url = URL.createObjectURL(svgBlob);
 
             // Ensure fonts are ready before rasterizing SVG into canvas — prevents text shifts
@@ -1146,8 +1171,10 @@ export default function Editor() {
                     backgroundColor: canvasBgColor,
                     elements,
                 });
+                const fontRules = buildFontFaceRules(fonts);
+                const finalSvg = fontRules ? svgMarkup.replace('<defs>', `<defs>\n${fontRules}`) : svgMarkup;
 
-                const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+                const blob = new Blob([finalSvg], { type: 'image/svg+xml;charset=utf-8' });
                 downloadBlob(blob, `${createSafeFilename(title)}.svg`);
             } finally {
                 try {

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '../store/auth';
 import { customFetch } from '../api/http';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -71,6 +72,24 @@ export default function Templates() {
         }
     });
 
+    const queryClient = useQueryClient();
+    const currentUser = useAuthStore(s => s.user);
+
+    const deleteTemplateMutation = useMutation({
+        mutationFn: async (templateId: number) => {
+            const response = await customFetch(`/api/project/${templateId}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Failed to delete template');
+            return response.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['templates']);
+        },
+        onError: (err) => {
+            console.error('Delete template failed', err);
+            alert('Failed to delete template');
+        }
+    });
+
     return (
         <div className="app">
             <Header />
@@ -97,7 +116,6 @@ export default function Templates() {
                             <div
                                 key={template.id}
                                 className="project-card"
-                                onClick={() => createFromTemplateMutation.mutate(template.id)}
                                 style={{
                                     opacity: createFromTemplateMutation.isPending ? 0.6 : 1,
                                     pointerEvents: createFromTemplateMutation.isPending ? 'none' : 'auto'
@@ -116,7 +134,7 @@ export default function Templates() {
                                         </div>
                                     )}
                                     <div className="project-overlay">
-                                        <button className="button-agree">
+                                        <button className="button-agree" onClick={(e) => { e.stopPropagation(); createFromTemplateMutation.mutate(template.id); }}>
                                             {createFromTemplateMutation.isPending ? 'Creating...' : 'Use Template'}
                                         </button>
                                     </div>
@@ -128,6 +146,24 @@ export default function Templates() {
                                         <div style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
                                             {template.ownerId === null ? 'System Template' : 'User Template'}
                                         </div>
+
+                                        {template.ownerId !== null && currentUser && template.ownerId === currentUser.id && (
+                                            <div style={{ marginTop: 8 }}>
+                                                <button className="button-secondary" style={{ padding: '6px 8px' }} onClick={(e) => { e.stopPropagation(); navigate(`/editor/${template.id}`); }}>
+                                                    Edit
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                        {template.ownerId !== null && currentUser && template.ownerId === currentUser.id && (
+                                            <>
+                                                <button className="button-danger" style={{ padding: '6px 8px', marginTop: 25, cursor: 'pointer', background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' }} onClick={(e) => { e.stopPropagation(); if (confirm('Delete this template? This cannot be undone.')) deleteTemplateMutation.mutate(template.id); }}>
+                                                    Delete
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
