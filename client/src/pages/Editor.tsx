@@ -43,13 +43,6 @@ const createSafeFilename = (value: string) => {
 
 const formatNumber = (value: number) => Number.isFinite(value) ? Number(value.toFixed(2)) : 0;
 
-const buildTrianglePoints = (x: number, y: number, width: number, height: number) => {
-    const top = `${formatNumber(x + width / 2)},${formatNumber(y)}`;
-    const left = `${formatNumber(x)},${formatNumber(y + height)}`;
-    const right = `${formatNumber(x + width)},${formatNumber(y + height)}`;
-    return `${top} ${left} ${right}`;
-};
-
 const buildStarPoints = (centerX: number, centerY: number, outerRadius: number, innerRadius: number, points = 5) => {
     const vertices = [];
     const step = Math.PI / points;
