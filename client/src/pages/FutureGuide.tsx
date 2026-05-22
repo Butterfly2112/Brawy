@@ -24,7 +24,7 @@ export default function FutureGuide() {
           <h2>Detailed guide</h2>
           <p>The left panel contains tools and templates. The center is the canvas. The right panel shows properties for the selected element (color, font, size).</p>
           <p>Uploading images: use "Image &gt; Upload" or drag-and-drop files directly onto the canvas.</p>
-          <p>Text: add a text block and change the font in the right panel. Custom fonts can be uploaded — they will be used in SVG/PDF export if CORS is configured correctly.</p>
+          <p>Text: add a text block and change the font in the right panel.</p>
         </section>
 
         <section style={{ marginTop: 24 }}>
@@ -32,7 +32,7 @@ export default function FutureGuide() {
           <p>Create a mobile poster 1080×1920:</p>
           <ul>
             <li>New project: set size to <code>1080x1920</code>.</li>
-            <li>Background: gradient or #f4f4f4.</li>
+            <li>Background: #fbfaff.</li>
             <li>Heading: Inter, 72px, centered.</li>
             <li>Image: upload and apply the Brighten filter.</li>
             <li>Export: PNG to check the final quality.</li>

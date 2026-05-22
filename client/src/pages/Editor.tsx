@@ -73,7 +73,7 @@ const buildSvgMarkup = (params: {
             const text = String(element.text ?? '');
             const fontSize = Number(element.fontSize ?? 32);
             const x = Number(element.x ?? 0);
-            const y = Number(element.y ?? 0);
+            const y = Number(element.y ?? 0) + fontSize;
             const widthValue = Number(element.width ?? 0);
             const fontFamily = escapeXml(element.fontFamily ?? 'Arial');
             const fontStyle = element.fontStyle?.includes('italic') ? 'italic' : 'normal';
@@ -168,7 +168,9 @@ const buildSvgMarkup = (params: {
             }, []).join(' ');
 
             if (element.tool === 'arrow') {
-                return `<polyline points="${pathPoints}" fill="none" stroke="${strokeColor}" stroke-width="${formatNumber(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)"${dashArray} />`;
+                // Make arrowhead inherit the stroke color by using `currentColor` in marker
+                // and setting CSS `color` on the polyline element.
+                return `<polyline points="${pathPoints}" fill="none" stroke="${strokeColor}" stroke-width="${formatNumber(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" style="color: ${strokeColor};"${dashArray} />`;
             }
 
             return `<polyline points="${pathPoints}" fill="none" stroke="${strokeColor}" stroke-width="${formatNumber(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round"${dashArray} />`;
@@ -180,9 +182,9 @@ const buildSvgMarkup = (params: {
     return `
         <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${formatNumber(width)}" height="${formatNumber(height)}" viewBox="0 0 ${formatNumber(width)} ${formatNumber(height)}" shape-rendering="geometricPrecision">
             <defs>
-                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
-                    <path d="M0,0 L10,3.5 L0,7 Z" fill="#000000" />
-                </marker>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L10,3.5 L0,7 Z" fill="currentColor" />
+                    </marker>
             </defs>
             <rect width="100%" height="100%" fill="${escapeXml(backgroundColor)}" />
             ${content}
