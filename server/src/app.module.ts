@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ErrorFilter } from './common/error.filter';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
@@ -10,6 +10,8 @@ import { UploadModule } from './upload/upload.module';
 import { ProjectModule } from './project/project.module';
 import { FontModule } from './font/font.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -21,6 +23,26 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
       },
     ]),
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    /*
+    TEMPORARY TO ALLOW IT BEING LODED WITHOUT DOCKER
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const host = configService.get<string>('REDIS_HOST') || 'localhost';
+        const port = configService.get<number>('REDIS_PORT') || 6379;
+        const password = configService.get<string>('REDIS_PASSWORD');
+
+        const redisUrl = password
+          ? `redis://:${password}@${host}:${port}`
+          : `redis://${host}:${port}`;
+
+        return {
+          throttlers: [{ name: 'default', ttl: 60 * 1000, limit: 200 }],
+          storage: new ThrottlerStorageRedisService(redisUrl),
+        };
+      },
+    }),*/
     PrismaModule,
     AuthModule,
     UserModule,
@@ -28,6 +50,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     UploadModule,
     ProjectModule,
     FontModule,
+    ExportModule,
   ],
   controllers: [],
   providers: [
