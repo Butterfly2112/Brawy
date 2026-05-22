@@ -62,10 +62,11 @@ const buildSvgMarkup = (params: {
     width: number;
     height: number;
     backgroundColor: string;
+    transparentBackground?: boolean;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     elements: any[];
 }) => {
-    const { width, height, backgroundColor, elements } = params;
+    const { width, height, backgroundColor, transparentBackground, elements } = params;
     const content = elements.map((element) => {
         if (!element?.type) return '';
 
@@ -155,7 +156,9 @@ const buildSvgMarkup = (params: {
             const xOffset = Number(element.x ?? 0);
             const yOffset = Number(element.y ?? 0);
 
-            const strokeColor = escapeXml(element.tool === 'eraser' ? backgroundColor : (element.stroke ?? '#000000'));
+            const strokeColor = escapeXml(element.tool === 'eraser'
+                ? (transparentBackground ? 'transparent' : backgroundColor)
+                : (element.stroke ?? '#000000'));
             const strokeWidth = Number(element.strokeWidth ?? 5);
             const dashArray = Array.isArray(element.dash) && element.dash.length > 0 ? ` stroke-dasharray="${element.dash.join(' ')}"` : '';
             const pathPoints = (points as number[]).reduce((acc: string[], point: number, index: number) => {
@@ -186,7 +189,7 @@ const buildSvgMarkup = (params: {
                         <path d="M0,0 L10,3.5 L0,7 Z" fill="currentColor" />
                     </marker>
             </defs>
-            <rect width="100%" height="100%" fill="${escapeXml(backgroundColor)}" />
+            ${transparentBackground ? '' : `<rect width="100%" height="100%" fill="${escapeXml(backgroundColor)}" />`}
             ${content}
         </svg>
     `;
@@ -211,6 +214,7 @@ export default function Editor() {
     const [canvasHeight, setCanvasHeight] = useState(600);
     const [canvasBgColor, setCanvasBgColor] = useState('#ffffff');
     const [showGrid, setShowGrid] = useState(false);
+    const [exportTransparentBackground, setExportTransparentBackground] = useState(false);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [elements, setElements] = useState<any[]>([]);
@@ -1062,7 +1066,7 @@ export default function Editor() {
         window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
     };
 
-    const captureStageCanvas = () => {
+    const captureStageCanvas = (options?: { transparentBackground?: boolean }) => {
         if (!stageRef.current) return undefined;
 
         const transformer = stageRef.current.findOne('Transformer');
@@ -1110,8 +1114,10 @@ export default function Editor() {
                 const context = composedCanvas.getContext('2d');
                 if (!context) return undefined;
 
-                context.fillStyle = canvasBgColor;
-                context.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
+                if (!options?.transparentBackground) {
+                    context.fillStyle = canvasBgColor;
+                    context.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
+                }
                 context.drawImage(stageCanvas, 0, 0);
 
                 return composedCanvas;
@@ -1143,7 +1149,7 @@ export default function Editor() {
     };
 
     const exportCanvasAsImage = async (format: 'png' | 'jpg') => {
-        const exportCanvas = captureStageCanvas();
+        const exportCanvas = captureStageCanvas({ transparentBackground: format === 'png' && exportTransparentBackground });
         if (!exportCanvas) {
             throw new Error('Canvas is not ready for export');
         }
@@ -1191,6 +1197,7 @@ export default function Editor() {
                     width: canvasWidth,
                     height: canvasHeight,
                     backgroundColor: canvasBgColor,
+                    transparentBackground: exportTransparentBackground,
                     elements,
                 });
                 const fontRules = buildFontFaceRules(fonts);
@@ -1223,6 +1230,7 @@ export default function Editor() {
             width: canvasWidth,
             height: canvasHeight,
             backgroundColor: canvasBgColor,
+            transparentBackground: exportTransparentBackground,
             elements,
         });
 
@@ -1531,6 +1539,47 @@ export default function Editor() {
                     {showMobileActions && (
                         <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 8, background: '#fff', border: '1px solid #cbd5e1', borderRadius: 12, boxShadow: '0 16px 40px rgba(15,23,42,0.18)', zIndex: 80, overflow: 'hidden' }}>
                             <button className="button-disagree" onClick={(e) => { e.preventDefault(); handleSave(); setShowMobileActions(false); }} style={{ display: 'block', width: '100%', padding: '10px 14px', textAlign: 'left', border: 'none', background: 'transparent', color: 'var(--primary-color)' }}>Save</button>
+                            <div style={{ padding: '10px 14px', borderTop: '1px solid #e6eef6', borderBottom: '1px solid #e6eef6' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', cursor: 'pointer', fontSize: '13px', color: '#0f172a' }}>
+                                    <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                        <span style={{ fontWeight: 600, letterSpacing: '-0.01em' }}>Transparent background</span>
+                                        <span style={{ fontSize: '12px', color: '#64748b' }}>For PNG and SVG exports.</span>
+                                    </span>
+                                    <span style={{ position: 'relative', width: '48px', height: '28px', flexShrink: 0 }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={exportTransparentBackground}
+                                            onChange={(e) => setExportTransparentBackground(e.target.checked)}
+                                            style={{ position: 'absolute', inset: 0, margin: 0, opacity: 0, cursor: 'pointer' }}
+                                        />
+                                        <span
+                                            aria-hidden="true"
+                                            style={{
+                                                position: 'absolute',
+                                                inset: 0,
+                                                borderRadius: '999px',
+                                                background: exportTransparentBackground ? 'linear-gradient(135deg, #cfeffd, #a5d8ff)' : '#dbe4ee',
+                                                boxShadow: exportTransparentBackground ? 'inset 0 0 0 1px rgba(255,255,255,0.4), 0 8px 18px rgba(165,216,255,0.35)' : 'inset 0 0 0 1px rgba(148,163,184,0.25)',
+                                                transition: 'background 180ms ease, box-shadow 180ms ease',
+                                            }}
+                                        />
+                                        <span
+                                            aria-hidden="true"
+                                            style={{
+                                                position: 'absolute',
+                                                top: '3px',
+                                                left: exportTransparentBackground ? '23px' : '3px',
+                                                width: '22px',
+                                                height: '22px',
+                                                borderRadius: '50%',
+                                                background: '#ffffff',
+                                                boxShadow: '0 6px 14px rgba(15,23,42,0.18)',
+                                                transition: 'left 180ms ease',
+                                            }}
+                                        />
+                                    </span>
+                                </label>
+                            </div>
                             <div style={{ borderTop: '1px solid #e6eef6' }}>
                                 {(['png', 'jpg', 'svg', 'pdf'] as ExportFormat[]).map((format) => (
                                     <button key={format} onClick={() => { setShowMobileActions(false); handleExport(format); }} style={{ display: 'block', width: '100%', padding: '10px 14px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}>
@@ -1573,6 +1622,47 @@ export default function Editor() {
                                     overflow: 'hidden',
                                 }}
                             >
+                                <div style={{ padding: '10px 14px', borderBottom: '1px solid #e6eef6' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', cursor: 'pointer', fontSize: '13px', color: '#0f172a' }}>
+                                        <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                            <span style={{ fontWeight: 600, letterSpacing: '-0.01em' }}>Transparent background</span>
+                                            <span style={{ fontSize: '12px', color: '#64748b' }}>For PNG and SVG exports.</span>
+                                        </span>
+                                        <span style={{ position: 'relative', width: '48px', height: '28px', flexShrink: 0 }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={exportTransparentBackground}
+                                                onChange={(e) => setExportTransparentBackground(e.target.checked)}
+                                                style={{ position: 'absolute', inset: 0, margin: 0, opacity: 0, cursor: 'pointer' }}
+                                            />
+                                            <span
+                                                aria-hidden="true"
+                                                style={{
+                                                    position: 'absolute',
+                                                    inset: 0,
+                                                    borderRadius: '999px',
+                                                    background: exportTransparentBackground ? 'linear-gradient(135deg, #cfeffd, #a5d8ff)' : '#dbe4ee',
+                                                    boxShadow: exportTransparentBackground ? 'inset 0 0 0 1px rgba(255,255,255,0.4), 0 8px 18px rgba(165,216,255,0.35)' : 'inset 0 0 0 1px rgba(148,163,184,0.25)',
+                                                    transition: 'background 180ms ease, box-shadow 180ms ease',
+                                                }}
+                                            />
+                                            <span
+                                                aria-hidden="true"
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: '3px',
+                                                    left: exportTransparentBackground ? '23px' : '3px',
+                                                    width: '22px',
+                                                    height: '22px',
+                                                    borderRadius: '50%',
+                                                    background: '#ffffff',
+                                                    boxShadow: '0 6px 14px rgba(15,23,42,0.18)',
+                                                    transition: 'left 180ms ease',
+                                                }}
+                                            />
+                                        </span>
+                                    </label>
+                                </div>
                                 {(['png', 'jpg', 'svg', 'pdf'] as ExportFormat[]).map((format) => (
                                     <button
                                         key={format}
