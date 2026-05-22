@@ -1626,7 +1626,7 @@ export default function Editor() {
                         onToggleTools={() => { setIsSidebarOpen(s => !s); setShowMobileMenu(false); }}
                         onToggleProps={() => { setIsRightOpen(s => !s); setShowMobileMenu(false); }}
                         onSave={() => { handleSave(); setShowMobileMenu(false); }}
-                        onExport={(format) => { setShowMobileMenu(false); handleExport(format); }}
+                        onExport={(format: ExportFormat) => { setShowMobileMenu(false); handleExport(format); }}
                         onShare={() => { setShowShareModal(true); setShowMobileMenu(false); }}
                     />
                 )}

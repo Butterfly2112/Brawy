@@ -82,7 +82,7 @@ export default function Templates() {
             return response.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries(['templates']);
+            queryClient.invalidateQueries({queryKey: ['templates']});
         },
         onError: (err) => {
             console.error('Delete template failed', err);
