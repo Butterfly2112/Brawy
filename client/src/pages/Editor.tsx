@@ -1478,9 +1478,9 @@ export default function Editor() {
 
     if (isPublicView && project) {
         return (
-            <div>
+            <div className="app">
                 <Header />
-                <main style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
+                <main style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
                     <div style={{ textAlign: 'center' }}>
                         {publicPreviewUrl ? (
                             // use img tag for both raster and svg data urls
