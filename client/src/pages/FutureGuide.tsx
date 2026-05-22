@@ -7,7 +7,7 @@ export default function FutureGuide() {
     <div className="app">
       <Header />
       <main style={{ padding: '32px', maxWidth: 1100, margin: '0 auto' }}>
-        <h1 style={{ color: '#274D69' }}>Instruction — Future</h1>
+        <h1 style={{ color: '#274D69' }}>Instruction</h1>
 
         <section style={{ marginTop: 20 }}>
           <h2>Quick Start</h2>

@@ -25,11 +25,12 @@ export default function About() {
 
                 <div className="about-text-section">
                     <h4 className="subtitle">About Brawy</h4>
-                    <h1>Create masterpieces right in your browser</h1>
+                    <h1>Your first brave steps into design</h1>
                     <p className="main-description">
-                        Brawy is a modern browser-based graphics editor designed to make
-                        the process of creating graphics fast, convenient, and accessible
-                        to everyone, without the need to install heavy programs.
+                        Brawy is a modern browser-based graphics editor that makes
+                        creating graphics fast, convenient, and accessible to everyone.
+                        Start exploring design with a lightweight, powerful toolset
+                        directly in your browser.
                     </p>
 
                     <div className="features-list">
