@@ -203,6 +203,9 @@ export default function Editor() {
 
     const [title, setTitle] = useState('Loading...');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isRightOpen, setIsRightOpen] = useState(true);
+    const [showMobileActions, setShowMobileActions] = useState(false);
+    const [showMobileMenu, setShowMobileMenu] = useState(false);
 
     const [canvasWidth, setCanvasWidth] = useState(800);
     const [canvasHeight, setCanvasHeight] = useState(600);
@@ -237,6 +240,23 @@ export default function Editor() {
         '/star.webp',
         '/stars.png'
     ];
+
+    useEffect(() => {
+        const handleResize = () => {
+            const small = window.innerWidth <= 800;
+            if (small) {
+                setIsSidebarOpen(false);
+                setIsRightOpen(false);
+            } else {
+                setIsSidebarOpen(true);
+                setIsRightOpen(true);
+            }
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const [showShapesMenu, setShowShapesMenu] = useState(false);
     const [showDrawMenu, setShowDrawMenu] = useState(false);
@@ -1506,6 +1526,21 @@ export default function Editor() {
                                 ? 'Saving...'
                                 : 'All changes saved'}
                     </span>
+                    <button className="mobile-actions-btn" onClick={() => setShowMobileActions(s => !s)} aria-label="Open actions">⋯</button>
+
+                    {showMobileActions && (
+                        <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 8, background: '#fff', border: '1px solid #cbd5e1', borderRadius: 12, boxShadow: '0 16px 40px rgba(15,23,42,0.18)', zIndex: 80, overflow: 'hidden' }}>
+                            <button className="button-disagree" onClick={(e) => { e.preventDefault(); handleSave(); setShowMobileActions(false); }} style={{ display: 'block', width: '100%', padding: '10px 14px', textAlign: 'left', border: 'none', background: 'transparent', color: 'var(--primary-color)' }}>Save</button>
+                            <div style={{ borderTop: '1px solid #e6eef6' }}>
+                                {(['png', 'jpg', 'svg', 'pdf'] as ExportFormat[]).map((format) => (
+                                    <button key={format} onClick={() => { setShowMobileActions(false); handleExport(format); }} style={{ display: 'block', width: '100%', padding: '10px 14px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}>
+                                        Export as {format.toUpperCase()}
+                                    </button>
+                                ))}
+                            </div>
+                            <button className="button-agree" onClick={() => { setShowShareModal(true); setShowMobileActions(false); }} style={{ display: 'block', width: '100%', padding: '10px 14px', border: 'none', background: 'transparent', textAlign: 'left' }}>Share</button>
+                        </div>
+                    )}
                     <button
                         className="button-disagree"
                         onMouseDown={(e) => e.preventDefault()}
@@ -1579,6 +1614,22 @@ export default function Editor() {
             </header>
 
             <div className="editor-body">
+                <button className="mobile-toggle-left" onClick={() => setIsSidebarOpen(s => !s)} aria-label="Toggle left tools">☰</button>
+                <button className="mobile-toggle-right" onClick={() => setIsRightOpen(s => !s)} aria-label="Toggle properties">⚙</button>
+                <button className="mobile-back-btn" onClick={handleExitClick} aria-label="Back to Home">←</button>
+
+                <button className="mobile-menu-btn" onClick={() => setShowMobileMenu(s => !s)} aria-label="Open mobile menu">≡</button>
+
+                {showMobileMenu && (
+                    <MobileMenuOverlay
+                        onClose={() => setShowMobileMenu(false)}
+                        onToggleTools={() => { setIsSidebarOpen(s => !s); setShowMobileMenu(false); }}
+                        onToggleProps={() => { setIsRightOpen(s => !s); setShowMobileMenu(false); }}
+                        onSave={() => { handleSave(); setShowMobileMenu(false); }}
+                        onExport={(format) => { setShowMobileMenu(false); handleExport(format); }}
+                        onShare={() => { setShowShareModal(true); setShowMobileMenu(false); }}
+                    />
+                )}
                 <aside
                     className={`editor-sidebar-left ${isSidebarOpen ? 'open' : ''}`}
                     style={{ overflowY: 'auto', overflowX: 'hidden' }}
@@ -1969,7 +2020,7 @@ export default function Editor() {
                     </div>
                 </main>
 
-                <aside className="editor-sidebar-right">
+                <aside className={`editor-sidebar-right ${isRightOpen ? 'open' : 'closed'}`}>
                     <div className="properties-panel">
 
                         {mode === 'draw' ? (
@@ -2411,6 +2462,32 @@ export default function Editor() {
                 />
             )}
 
+        </div>
+    );
+}
+
+// Mobile menu overlay as JSX helper (keeps file simple without extra file)
+function MobileMenuOverlay({ onClose, onToggleTools, onToggleProps, onSave, onExport, onShare }: any) {
+    const [exportOpen, setExportOpen] = useState(false);
+
+    return (
+        <div className="mobile-menu-overlay">
+            <button className="mobile-menu-item" onClick={() => { onToggleTools(); onClose(); }}>Tools</button>
+            <button className="mobile-menu-item" onClick={() => { onToggleProps(); onClose(); }}>Properties</button>
+            <button className="mobile-menu-item" onClick={() => { onSave(); }}>Save</button>
+            <div style={{ borderTop: '1px solid #eef4fa' }}>
+                {!exportOpen ? (
+                    <button className="mobile-menu-item" onClick={() => setExportOpen(true)}>Export</button>
+                ) : (
+                    <>
+                        {(['png', 'jpg', 'svg', 'pdf'] as ExportFormat[]).map((format) => (
+                            <button key={format} className="mobile-menu-item" onClick={() => { onExport(format); }}>{format.toUpperCase()}</button>
+                        ))}
+                        <button className="mobile-menu-item" onClick={() => setExportOpen(false)}>Back</button>
+                    </>
+                )}
+            </div>
+            <button className="mobile-menu-item" onClick={() => { onShare(); onClose(); }}>Share</button>
         </div>
     );
 }

@@ -519,8 +519,28 @@ a {
 .project-name { font-size: 14px; font-weight: 600; color: var(--primary-color); }
 
 /* Publications list tweaks */
-.projects-list .project-card { aspect-ratio: auto; box-shadow: none; display: flex; align-items: center; }
+.projects-list .project-card { aspect-ratio: auto; box-shadow: none; display: flex; align-items: center; padding: 10px 16px; gap: 12px; }
 .projects-list .project-card:hover { transform: none; box-shadow: var(--shadow-sm); }
+
+/* Row variant for publications list: preview + info + actions */
+.projects-list .project-card.pub-row { flex-direction: row; align-items: center; justify-content: space-between; }
+.projects-list .project-card.pub-row > div:nth-child(2) { padding-left: 12px; flex: 1; }
+.projects-list .project-card .project-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+    .projects-list { gap: 8px; }
+    .projects-list .project-card { padding: 8px 10px; }
+    .project-preview-container.pub-preview { width: 56px; height: 56px; flex: 0 0 56px; }
+    .project-name { font-size: 15px; }
+    .project-desc { font-size: 13px; color: var(--text-muted); max-width: none; display: block; }
+    .projects-list .project-card.pub-row { align-items: center; }
+    .projects-list .project-card.pub-row { gap: 10px; }
+    .project-meta { font-size: 12px; }
+    .project-card .project-meta { order: 3; width: 100%; text-align: left; margin-top: 6px; }
+    .projects-list .project-card .project-actions { order: 2; }
+    .projects-list .project-card .project-actions button { padding: 6px 8px; font-size: 13px; }
+}
 .project-desc { color: var(--text-muted); margin-top: 2px; max-width: 520px; }
 .project-meta { color: var(--text-muted); font-size: 13px; }
 
@@ -626,6 +646,31 @@ a {
         justify-content: center;
         width: 100%;
         gap: 30px;
+    }
+
+    /* Hide Export/Share and avatar on mobile, keep Save visible; show compact actions button */
+    .topbar-right .button-agree,
+    .topbar-right > .editor-avatar,
+    .topbar-right .save-status {
+        display: none;
+    }
+
+    /* Keep Save button visible */
+    .topbar-right > .button-disagree { display: inline-block; }
+
+    .mobile-actions-btn {
+        display: inline-flex;
+        margin-left: 8px;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        cursor: pointer;
+        font-size: 18px;
     }
 }
 
@@ -1131,6 +1176,154 @@ a {
 .editor-sidebar-right {
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 transparent;
+}
+
+/* Hide mobile toggle buttons on larger screens; shown only in mobile media query */
+.mobile-toggle-left, .mobile-toggle-right {
+    display: none;
+}
+
+/* Mobile actions trigger (hidden on desktop) */
+.mobile-actions-btn { display: none; }
+
+/* Mobile back button hidden on large screens */
+.mobile-back-btn { display: none; }
+
+/* Mobile menu button hidden on large screens */
+.mobile-menu-btn { display: none; }
+
+/* Mobile responsive: make sidebars overlay and hidden by default */
+@media (max-width: 800px) {
+    .editor-sidebar-left,
+    .editor-sidebar-right {
+        position: fixed;
+        top: 56px;
+        bottom: 0;
+        height: calc(100% - 56px);
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 8px 24px rgba(2,6,23,0.2);
+        background: white;
+        z-index: 60;
+    }
+
+    .editor-sidebar-left {
+        left: 0;
+        transform: translateX(-100%);
+        width: 200px;
+    }
+
+    .editor-sidebar-left.open {
+        transform: translateX(0);
+    }
+
+    .editor-sidebar-right {
+        right: 0;
+        transform: translateX(100%);
+        width: 280px;
+    }
+
+    .editor-sidebar-right.open {
+        transform: translateX(0);
+    }
+
+    .editor-canvas-container {
+        padding: 12px;
+    }
+
+    /* Floating mobile toggles */
+    .mobile-toggle-left,
+    .mobile-toggle-right {
+        display: block;
+        position: fixed;
+        top: 10px;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 12px rgba(2,6,23,0.08);
+        z-index: 70;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    .mobile-toggle-left { left: 12px; }
+    .mobile-toggle-right { right: 5px; top: 170px; }
+
+    .mobile-back-btn {
+        display: flex;
+        position: fixed;
+        left: 60px;
+        top: 12px;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 12px rgba(2,6,23,0.08);
+        z-index: 75;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    .mobile-menu-btn {
+        display: inline-flex;
+        position: fixed;
+        left: 12px;
+        top: 12px;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 12px rgba(2,6,23,0.08);
+        z-index: 75;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    .mobile-menu-overlay {
+        position: fixed;
+        left: 12px;
+        top: 60px;
+        width: 140px;
+        background: #fff;
+        border: 1px solid #e6eef6;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(2,6,23,0.12);
+        z-index: 80;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .mobile-menu-item {
+        padding: 10px 12px;
+        text-align: left;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .mobile-menu-item + .mobile-menu-item { border-top: 1px solid #eef4fa; }
+
+    /* Keep editor header controls visible but compact */
+    header .project-title-input { width: 120px; }
+
+    /* Shift project title input a bit to the right on small screens to avoid overlap with mobile buttons */
+    header .project-title-input {
+        margin-left: 56px;
+        width: calc(100% - 140px);
+    }
 }
 
 .editor-sidebar-right::-webkit-scrollbar {

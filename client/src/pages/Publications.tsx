@@ -66,7 +66,7 @@ export default function Publications() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }} className="projects-list">
                     {sharedByOwner.map(p => (
-                      <div key={p.id} className="project-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', padding: '12px 64px' }}>
+                      <div key={p.id} className="project-card pub-row">
                         <div className="project-preview-container pub-preview" style={{ borderRadius: 8, flexShrink: 0, overflow: 'hidden' }}>
                           {p.thumbnailUrl ? (
                             <img src={p.thumbnailUrl} alt={p.title} className="project-preview-img" />
