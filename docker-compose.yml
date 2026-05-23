@@ -44,6 +44,8 @@ services:
       - backend
     ports:
       - "80:80"
+    environment:
+      - BACKEND_URL=http://backend:3000
 
 volumes:
   pgdata:

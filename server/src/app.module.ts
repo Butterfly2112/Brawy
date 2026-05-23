@@ -15,16 +15,7 @@ import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([
-      {
-        name: 'default',
-        ttl: 60 * 1000,
-        limit: 200,
-      },
-    ]),
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
-    /*
-    TEMPORARY TO ALLOW IT BEING LODED WITHOUT DOCKER
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -42,7 +33,7 @@ import { ExportModule } from './export/export.module';
           storage: new ThrottlerStorageRedisService(redisUrl),
         };
       },
-    }),*/
+    }),
     PrismaModule,
     AuthModule,
     UserModule,

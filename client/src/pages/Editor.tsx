@@ -44,7 +44,7 @@ const createSafeFilename = (value: string) => {
 };
 
 const formatNumber = (value: number) => Number.isFinite(value) ? Number(value.toFixed(2)) : 0;
-
+/* I don't know what it does but it does not let me compile sooooo I commented it) - Backend
 const buildStarPoints = (centerX: number, centerY: number, outerRadius: number, innerRadius: number, points = 5) => {
     const vertices = [];
     const step = Math.PI / points;
@@ -57,6 +57,7 @@ const buildStarPoints = (centerX: number, centerY: number, outerRadius: number, 
 
     return vertices.join(' ');
 };
+*/
 
 // Points centered at origin (used to match backend transform-based rendering)
 const polygonPointsCentered = (sides: number, radius: number) => {
