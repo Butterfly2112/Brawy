@@ -58,6 +58,26 @@ const buildStarPoints = (centerX: number, centerY: number, outerRadius: number, 
     return vertices.join(' ');
 };
 
+// Points centered at origin (used to match backend transform-based rendering)
+const polygonPointsCentered = (sides: number, radius: number) => {
+    const pts: string[] = [];
+    for (let i = 0; i < sides; i++) {
+        const angle = ((Math.PI * 2) / sides) * i - Math.PI / 2;
+        pts.push(`${formatNumber(Math.cos(angle) * radius)},${formatNumber(Math.sin(angle) * radius)}`);
+    }
+    return pts.join(' ');
+};
+
+const buildStarPointsCentered = (outerR: number, innerR: number, numPoints: number) => {
+    const pts: string[] = [];
+    for (let i = 0; i < numPoints * 2; i++) {
+        const angle = (Math.PI / numPoints) * i - Math.PI / 2;
+        const r = i % 2 === 0 ? outerR : innerR;
+        pts.push(`${formatNumber(Math.cos(angle) * r)},${formatNumber(Math.sin(angle) * r)}`);
+    }
+    return pts.join(' ');
+};
+
 const buildSvgMarkup = (params: {
     width: number;
     height: number;
@@ -112,40 +132,43 @@ const buildSvgMarkup = (params: {
             const widthValue = Number(element.width ?? element.baseWidth ?? 150);
             const heightValue = Number(element.height ?? element.baseHeight ?? 150);
 
-            // For some shapes (triangle, star) WorkspaceCanvas uses center origin (x,y are center).
-            // For rect/ellipse x,y are top-left.
+            const x = Number(element.x ?? 0);
+            const y = Number(element.y ?? 0);
+            const sx = Number(element.scaleX ?? 1);
+            const sy = Number(element.scaleY ?? 1);
+            const rot = Number(element.rotation ?? 0);
+
+            const isCenterOrigin = element.shapeType === 'star' || element.shapeType === 'triangle';
+            const transformParts: string[] = [];
+            if (x !== 0 || y !== 0) transformParts.push(`translate(${formatNumber(x)} ${formatNumber(y)})`);
+            if (rot !== 0) {
+                if (isCenterOrigin) transformParts.push(`rotate(${formatNumber(rot)})`);
+                else transformParts.push(`rotate(${formatNumber(rot)} ${formatNumber(widthValue / 2)} ${formatNumber(heightValue / 2)})`);
+            }
+            if (sx !== 1 || sy !== 1) transformParts.push(`scale(${formatNumber(sx)} ${formatNumber(sy)})`);
+            const transformAttr = transformParts.length ? ` transform="${transformParts.join(' ')}"` : '';
+
             if (element.shapeType === 'rect') {
-                const x = Number(element.x ?? 0);
-                const y = Number(element.y ?? 0);
                 const cornerRadius = Number(element.cornerRadius ?? 0);
-                return `<rect x="${formatNumber(x)}" y="${formatNumber(y)}" width="${formatNumber(widthValue)}" height="${formatNumber(heightValue)}" rx="${formatNumber(cornerRadius)}" ry="${formatNumber(cornerRadius)}" fill="${fill}" transform="${element.rotation ? `rotate(${formatNumber(element.rotation)} ${formatNumber(x + widthValue/2)} ${formatNumber(y + heightValue/2)})` : ''}" />`;
+                return `<rect width="${formatNumber(widthValue)}" height="${formatNumber(heightValue)}" rx="${formatNumber(cornerRadius)}" ry="${formatNumber(cornerRadius)}" fill="${fill}"${transformAttr} />`;
             }
 
             if (element.shapeType === 'ellipse') {
-                const x = Number(element.x ?? 0);
-                const y = Number(element.y ?? 0);
-                return `<ellipse cx="${formatNumber(x + widthValue / 2)}" cy="${formatNumber(y + heightValue / 2)}" rx="${formatNumber(widthValue / 2)}" ry="${formatNumber(heightValue / 2)}" fill="${fill}" transform="${element.rotation ? `rotate(${formatNumber(element.rotation)} ${formatNumber(x + widthValue/2)} ${formatNumber(y + heightValue/2)})` : ''}" />`;
+                return `<ellipse cx="${formatNumber(widthValue / 2)}" cy="${formatNumber(heightValue / 2)}" rx="${formatNumber(widthValue / 2)}" ry="${formatNumber(heightValue / 2)}" fill="${fill}"${transformAttr} />`;
             }
 
             if (element.shapeType === 'triangle') {
-                const cx = Number(element.x ?? 0);
-                const cy = Number(element.y ?? 0);
-                const rx = widthValue / 2;
-                const ry = heightValue / 2;
-                const top = `${formatNumber(cx)} ${formatNumber(cy - ry)}`;
-                const left = `${formatNumber(cx - rx)} ${formatNumber(cy + ry)}`;
-                const right = `${formatNumber(cx + rx)} ${formatNumber(cy + ry)}`;
-                const points = `${top} ${left} ${right}`;
-                return `<polygon points="${points}" fill="${fill}" transform="${element.rotation ? `rotate(${formatNumber(element.rotation)} ${formatNumber(cx)} ${formatNumber(cy)})` : ''}" />`;
+                const radius = Math.max(1, Math.min(widthValue, heightValue) / 2);
+                const points = polygonPointsCentered(3, radius);
+                return `<polygon points="${points}" fill="${fill}"${transformAttr} />`;
             }
 
             if (element.shapeType === 'star') {
-                const cx = Number(element.x ?? 0);
-                const cy = Number(element.y ?? 0);
                 const outerRadius = Math.max(5, Math.min(widthValue, heightValue) / 2);
                 const innerRadius = Number(element.innerRadius ?? outerRadius * 0.45);
                 const points = Number(element.numPoints ?? 5);
-                return `<polygon points="${buildStarPoints(cx, cy, outerRadius, innerRadius, points)}" fill="${fill}" transform="${element.rotation ? `rotate(${formatNumber(element.rotation)} ${formatNumber(cx)} ${formatNumber(cy)})` : ''}" />`;
+                const pts = buildStarPointsCentered(outerRadius, innerRadius, points);
+                return `<polygon points="${pts}" fill="${fill}"${transformAttr} />`;
             }
         }
 
@@ -402,6 +425,85 @@ export default function Editor() {
         } else {
             navigate('/home');
         }
+    };
+
+    const uploadImageForExport = async (src: string) => {
+        if (!src) return src;
+        // If already uploaded to Cloudinary, skip
+        if (src.includes('res.cloudinary.com')) return src;
+
+        try {
+            let absolute = src;
+            if (src.startsWith('/')) absolute = window.location.origin + src;
+
+            let blob: Blob;
+            if (absolute.startsWith('data:')) {
+                // convert data URL to blob
+                const res = await fetch(absolute);
+                blob = await res.blob();
+            } else {
+                const fetched = await fetch(absolute);
+                if (!fetched.ok) throw new Error('Failed to fetch image for upload');
+                blob = await fetched.blob();
+            }
+            const filename = (src.split('/').pop() || 'image').split('?')[0];
+
+            const fd = new FormData();
+            fd.append('file', blob, filename);
+
+            const resp = await customFetch(`/api/project/${id}/assets`, {
+                method: 'POST',
+                body: fd,
+            });
+
+            if (!resp.ok) {
+                const txt = await resp.text().catch(() => '');
+                throw new Error('Upload failed: ' + txt);
+            }
+
+            const json = await resp.json();
+            return json.url || src;
+        } catch (err) {
+            console.warn('Image upload for SVG export failed:', src, err);
+            return src;
+        }
+    };
+
+    const exportCanvasAsSvgFromBackend = async () => {
+        if (!id) return;
+
+        const currentCanvasData = {
+            className: 'Stage',
+            attrs: {
+                backgroundColor: canvasBgColor,
+                width: canvasWidth,
+                height: canvasHeight,
+            },
+            children: [] as any[],
+        };
+
+        const sourceChildren = elements.filter(el => el.type !== 'placeholder');
+
+        const children = await Promise.all(sourceChildren.map(async (el: any) => {
+            if (el.type === 'image' && el.src) {
+                const uploaded = await uploadImageForExport(el.src);
+                return { ...el, src: uploaded };
+            }
+            return el;
+        }));
+
+        currentCanvasData.children = children;
+
+        const response = await customFetch('/api/export/svg', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ canvasData: currentCanvasData }),
+        });
+
+        if (!response.ok) throw new Error('SVG export failed');
+
+        const blob = await response.blob();
+        downloadBlob(blob, `${createSafeFilename(title)}.svg`);
     };
 
     const applyProjectState = useCallback((projectData: {
@@ -1171,72 +1273,7 @@ export default function Editor() {
         downloadBlob(blob, `${createSafeFilename(title)}.${format}`);
     };
 
-    const exportCanvasAsSvg = () => {
-        // Reset stage transform so SVG is built from logical canvas coordinates
-        if (stageRef.current) {
-            const prevScaleX = typeof stageRef.current.scaleX === 'function' ? stageRef.current.scaleX() : 1;
-            const prevScaleY = typeof stageRef.current.scaleY === 'function' ? stageRef.current.scaleY() : 1;
-            const prevX = typeof stageRef.current.x === 'function' ? stageRef.current.x() : 0;
-            const prevY = typeof stageRef.current.y === 'function' ? stageRef.current.y() : 0;
-
-            try {
-                if (typeof stageRef.current.scale === 'function') {
-                    stageRef.current.scale({ x: 1, y: 1 });
-                } else if (typeof stageRef.current.setScale === 'function') {
-                    stageRef.current.setScale(1);
-                }
-                if (typeof stageRef.current.position === 'function') {
-                    stageRef.current.position({ x: 0, y: 0 });
-                } else {
-                    if (typeof stageRef.current.x === 'function') stageRef.current.x(0);
-                    if (typeof stageRef.current.y === 'function') stageRef.current.y(0);
-                }
-                stageRef.current.batchDraw?.();
-
-                const svgMarkup = buildSvgMarkup({
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    backgroundColor: canvasBgColor,
-                    transparentBackground: exportTransparentBackground,
-                    elements,
-                });
-                const fontRules = buildFontFaceRules(fonts);
-                const finalSvg = fontRules ? svgMarkup.replace('<defs>', `<defs>\n${fontRules}`) : svgMarkup;
-
-                const blob = new Blob([finalSvg], { type: 'image/svg+xml;charset=utf-8' });
-                downloadBlob(blob, `${createSafeFilename(title)}.svg`);
-            } finally {
-                try {
-                    if (typeof stageRef.current.scale === 'function') {
-                        stageRef.current.scale({ x: prevScaleX, y: prevScaleY });
-                    } else if (typeof stageRef.current.setScale === 'function') {
-                        stageRef.current.setScale(prevScaleX);
-                    }
-                    if (typeof stageRef.current.position === 'function') {
-                        stageRef.current.position({ x: prevX, y: prevY });
-                    } else {
-                        if (typeof stageRef.current.x === 'function') stageRef.current.x(prevX);
-                        if (typeof stageRef.current.y === 'function') stageRef.current.y(prevY);
-                    }
-                    stageRef.current.batchDraw?.();
-                } catch (e) {
-                    // ignore restore errors
-                }
-            }
-            return;
-        }
-
-        const svgMarkup = buildSvgMarkup({
-            width: canvasWidth,
-            height: canvasHeight,
-            backgroundColor: canvasBgColor,
-            transparentBackground: exportTransparentBackground,
-            elements,
-        });
-
-        const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
-        downloadBlob(blob, `${createSafeFilename(title)}.svg`);
-    };
+    
 
     const exportCanvasAsPdf = async () => {
         const exportCanvas = captureStageCanvas();
@@ -1267,7 +1304,7 @@ export default function Editor() {
             if (format === 'png' || format === 'jpg') {
                 await exportCanvasAsImage(format);
             } else if (format === 'svg') {
-                exportCanvasAsSvg();
+                await exportCanvasAsSvgFromBackend();
             } else {
                 await exportCanvasAsPdf();
             }
@@ -1542,8 +1579,8 @@ export default function Editor() {
                             <div style={{ padding: '10px 14px', borderTop: '1px solid #e6eef6', borderBottom: '1px solid #e6eef6' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', cursor: 'pointer', fontSize: '13px', color: '#0f172a' }}>
                                     <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                        <span style={{ fontWeight: 600, letterSpacing: '-0.01em' }}>Transparent background</span>
-                                        <span style={{ fontSize: '12px', color: '#64748b' }}>For PNG and SVG exports.</span>
+                                                                        <span style={{ fontWeight: 600, letterSpacing: '-0.01em' }}>Transparent background</span>
+                                                                        <span style={{ fontSize: '12px', color: '#64748b' }}>For PNG and SVG exports.</span>
                                     </span>
                                     <span style={{ position: 'relative', width: '48px', height: '28px', flexShrink: 0 }}>
                                         <input
