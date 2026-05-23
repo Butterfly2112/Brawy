@@ -440,13 +440,6 @@ a {
     padding: 20px 20px;
 }
 
-/* Page header padding for Publications and similar pages */
-.page-header {
-    padding: 28px 24px 12px; /* top, sides, bottom */
-}
-.page-title { margin: 0; font-size: 28px; color: var(--primary-color); font-weight: 800; }
-.page-subtitle { margin-top: 8px; color: var(--secondary-color); font-size: 15px; }
-
 .project-card {
     background: white;
     border-radius: var(--radius-md);

@@ -159,8 +159,27 @@ export default function Templates() {
                                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                         {template.ownerId !== null && currentUser && template.ownerId === currentUser.id && (
                                             <>
-                                                <button className="button-danger" style={{ padding: '6px 8px', marginTop: 25, cursor: 'pointer', background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' }} onClick={(e) => { e.stopPropagation(); if (confirm('Delete this template? This cannot be undone.')) deleteTemplateMutation.mutate(template.id); }}>
-                                                    Delete
+                                                <button className="button-danger"
+                                                        style={{
+                                                            background: 'transparent',
+                                                            marginTop: '20px',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            padding: '5px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            opacity: 0.7,
+                                                            transition: 'opacity 0.2s',
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+                                                        onClick={(e) => { e.stopPropagation(); if (confirm('Delete this template? This cannot be undone.')) deleteTemplateMutation.mutate(template.id); }}>
+                                                    <img
+                                                        src="/trash-icon.png"
+                                                        alt="Delete"
+                                                        style={{ width: '20px', height: '20px' }}
+                                                    />
                                                 </button>
                                             </>
                                         )}

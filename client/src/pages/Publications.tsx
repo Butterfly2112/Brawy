@@ -51,9 +51,11 @@ export default function Publications() {
       <Header />
       <main className="home-page">
         <div className="home-container">
-          <header className="page-header">
-            <h1 className="page-title">My Publications</h1>
-            <p className="page-subtitle">Presentations you've made public. You can make them private from here.</p>
+          <header className="home-header">
+            <div className="header-content">
+              <h1>My Publications</h1>
+              <p className="subtitle">Presentations you've made public. You can make them private from here.</p>
+            </div>
           </header>
 
           <section style={{ marginTop: 12 }}>
@@ -62,9 +64,9 @@ export default function Publications() {
             ) : (
               <div>
                 {sharedByOwner.length === 0 ? (
-                  <div style={{ color: '#64748b' }}>You have no public presentations.</div>
+                  <div style={{ color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>You have no public presentations.</div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }} className="projects-list">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '15px' }} className="projects-list">
                     {sharedByOwner.map(p => (
                       <div key={p.id} className="project-card pub-row">
                         <div className="project-preview-container pub-preview" style={{ borderRadius: 8, flexShrink: 0, overflow: 'hidden' }}>
