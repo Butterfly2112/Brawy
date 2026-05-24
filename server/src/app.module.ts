@@ -20,13 +20,8 @@ import { ExportModule } from './export/export.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const host = configService.get<string>('REDIS_HOST') || 'localhost';
-        const port = configService.get<number>('REDIS_PORT') || 6379;
-        const password = configService.get<string>('REDIS_PASSWORD');
-
-        const redisUrl = password
-          ? `redis://:${password}@${host}:${port}`
-          : `redis://${host}:${port}`;
+        const redisUrl =
+          configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
 
         return {
           throttlers: [{ name: 'default', ttl: 60 * 1000, limit: 200 }],
