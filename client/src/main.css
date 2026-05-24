@@ -667,6 +667,63 @@ a {
     }
 }
 
+@media (max-width: 640px) {
+    .about-page {
+        padding: 32px 16px 48px;
+    }
+
+    .about-content {
+        gap: 24px;
+    }
+
+    .about-gallery {
+        width: 100%;
+        min-width: 0;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .gallery-img {
+        position: static;
+        width: 100%;
+        height: auto;
+        border-width: 3px;
+        transform: none !important;
+    }
+
+    .img-1,
+    .img-2,
+    .img-3 {
+        width: 100%;
+        top: auto;
+        right: auto;
+        bottom: auto;
+        left: auto;
+        z-index: auto;
+    }
+
+    .about-text-section h1 {
+        font-size: 1.9rem;
+    }
+
+    .main-description {
+        font-size: 1rem;
+    }
+
+    .feature-item {
+        gap: 12px;
+    }
+
+    .feature-icon {
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+        font-size: 20px;
+    }
+}
+
 /* EDITOR */
 .editor-layout {
     display: flex;

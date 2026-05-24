@@ -33,6 +33,12 @@ const escapeXml = (value: unknown) => String(value ?? '')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 
+const resolveSvgAssetUrl = (value: string) => {
+    if (!value) return value;
+    if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value)) return value;
+    return value.startsWith('/') ? `${window.location.origin}${value}` : value;
+};
+
 const createSafeFilename = (value: string) => {
     const cleaned = value
         .trim()
@@ -119,7 +125,7 @@ const buildSvgMarkup = (params: {
             const y = Number(element.y ?? 0);
             const widthValue = Number(element.width ?? 100);
             const heightValue = Number(element.height ?? 100);
-            const src = escapeXml(element.src ?? '');
+            const src = escapeXml(resolveSvgAssetUrl(String(element.src ?? '')));
 
             if (!src) return '';
 
@@ -916,6 +922,7 @@ export default function Editor() {
     const handleAddExistingImage = (url: string) => {
         tempImageIdRef.current += 1;
         const tempId = `image-${tempImageIdRef.current}`;
+        const resolvedUrl = resolveSvgAssetUrl(url);
         const img = new window.Image();
 
         img.onload = () => {
@@ -937,7 +944,7 @@ export default function Editor() {
             setElements((prev) => [...prev, {
                 id: tempId,
                 type: 'image',
-                src: url,
+                src: resolvedUrl,
                 x: newX,
                 y: newY,
                 width: w,
@@ -951,9 +958,9 @@ export default function Editor() {
             setShowImageMenu(false);
         };
         img.onerror = () => {
-            console.error('Failed to load image:', url);
+            console.error('Failed to load image:', resolvedUrl);
         };
-        img.src = url;
+        img.src = resolvedUrl;
     };
 
     const handleAddText = () => {

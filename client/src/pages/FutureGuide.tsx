@@ -23,7 +23,7 @@ export default function FutureGuide() {
         <section style={{ marginTop: 24 }}>
           <h2>Detailed guide</h2>
           <p>The left panel contains tools and templates. The center is the canvas. The right panel shows properties for the selected element (color, font, size).</p>
-          <p>Uploading images: use "Image &gt; Upload" or drag-and-drop files directly onto the canvas.</p>
+          <p>Uploading images: use "Image &gt; Upload".</p>
           <p>Text: add a text block and change the font in the right panel.</p>
         </section>
 
