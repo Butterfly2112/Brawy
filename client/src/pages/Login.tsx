@@ -11,6 +11,7 @@ import GoogleLoginButton from './GoogleLoginButton';
 type GoogleTokenPayload = {
   sub?: number | string;
   login?: string;
+  username?: string;
   email?: string;
 };
 
@@ -34,7 +35,7 @@ function decodeGoogleToken(token: string): User | null {
     return {
       id: typeof payload.sub === 'string' ? Number(payload.sub) : payload.sub ?? 0,
       login,
-      username: login,
+      username: payload.username ?? login,
       email,
       avatar_url: '',
       created_at: new Date().toISOString(),
