@@ -267,7 +267,7 @@ a {
 .user-dropdown-container { position: relative; cursor: pointer; padding: 5px 10px; }
 .user-info-trigger { display: flex; align-items: center; gap: 8px; color: white; }
 .username-text { font-weight: bold; }
-.avatar { width: 32px; height: 32px; border-radius: 50%; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 
 .dropdown-menu {
     position: absolute;
@@ -585,6 +585,51 @@ a {
 .about-text-section h1 { color: var(--primary-color); font-size: 2.8rem; margin-bottom: 25px; line-height: 1.2; font-weight: 800; }
 .main-description { color: var(--text-light); line-height: 1.7; margin-bottom: 35px; font-size: 1.1rem; }
 
+@media (max-width: 992px) {
+    .about-content {
+        flex-direction: column;
+        gap: 60px;
+    }
+
+    .about-text-section h1 {
+        font-size: 2.2rem;
+    }
+
+    .about-gallery {
+        flex: none;
+        width: 100%;
+        max-width: 550px;
+        height: 500px;
+        min-height: 500px;
+        margin: 0 auto;
+    }
+}
+
+@media (max-width: 576px) {
+    .about-page {
+        padding: 40px 15px;
+    }
+
+    .about-gallery {
+        flex: none;
+        width: 100%;
+        height: 400px;
+        min-height: 400px;
+        margin-bottom: 50px;
+    }
+
+    .gallery-img {
+        border-width: 3px;
+        min-height: 200px;
+        max-height: 250px;
+        object-position: top;
+    }
+
+    .img-1 { width: 55%; top: 0; left: 0; }
+    .img-2 { width: 45%; top: 15%; right: 0; }
+    .img-3 { width: 60%; bottom: 0; left: 10%; }
+}
+
 .features-list { display: flex; flex-direction: column; gap: 25px; margin-bottom: 45px; }
 .feature-item { display: flex; align-items: flex-start; gap: 15px; }
 .feature-icon {
@@ -602,12 +647,6 @@ a {
 .feature-item strong { display: block; color: var(--primary-color); font-size: 1.1rem; margin-bottom: 5px; }
 .feature-item p { margin: 0; font-size: 0.95rem; color: var(--text-muted); line-height: 1.5; }
 
-/* АДАПТИВНІСТЬ */
-@media (max-width: 960px) {
-    .about-content { flex-direction: column; gap: 40px; }
-    .about-gallery { width: 100%; min-width: 100%; height: 400px; }
-    .about-text-section h1 { font-size: 2.2rem; }
-}
 
 @media (max-width: 768px) {
     .login-page { flex-direction: column; }

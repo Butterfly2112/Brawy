@@ -50,7 +50,6 @@ export default function Header() {
             setNewAvatar(user.avatar_url || '');
             setAvatarFile(null);
 
-            // Очищаємо старі повідомлення при новому відкритті
             setUpdateError('');
             setSuccessMessage('');
 
@@ -60,7 +59,6 @@ export default function Header() {
 
     const mutation = useMutation({
         mutationFn: async () => {
-            // Очищаємо помилки перед новим запитом
             setUpdateError('');
             setSuccessMessage('');
 
@@ -99,14 +97,12 @@ export default function Header() {
 
             useAuthStore.getState().setAuth(userForStore, currentToken);
 
-            // Визначаємо текст повідомлення залежно від того, чи змінили пошту
             if (newEmail !== user?.email) {
                 setSuccessMessage('Profile updated! Verification email sent to your new address.');
             } else {
                 setSuccessMessage('Profile successfully updated!');
             }
 
-            // Даємо користувачу 2.5 секунди прочитати повідомлення перед закриттям
             setTimeout(() => {
                 setIsModalOpen(false);
                 setSuccessMessage('');
@@ -114,7 +110,7 @@ export default function Header() {
 
         },
         onError: (e: any) => {
-            setSuccessMessage(''); // Прибираємо успіх, якщо є помилка
+            setSuccessMessage('');
             setUpdateError(e.message || 'Update failed');
         }
     });
@@ -178,7 +174,7 @@ export default function Header() {
                                     className="avatar"
                                     onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
                                 />
-                                <span className="username-text">{user.login}</span>
+                                <span className="username-text">{user.username}</span>
                             </div>
 
                             {isDropdownOpen && (

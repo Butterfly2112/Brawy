@@ -19,10 +19,10 @@ export default function Register() {
         mutationFn: () => register({ login, username, email, password }),
         onSuccess: (data) => {
             setMessage(data.message);
-            setError(''); // Очищуємо помилку при успіху
+            setError('');
         },
         onError: (e: unknown) => {
-            setMessage(''); // Очищуємо повідомлення успіху
+            setMessage('');
             setError(e instanceof Error ? e.message : 'Unable to register. Please try again.');
         },
     });
@@ -45,16 +45,13 @@ export default function Register() {
             <Header />
 
             <main className="login-page">
-                {/* ЛІВА ЧАСТИНА: Привітання та Фото (аналогічно логіну) */}
                 <div className="login-left">
                     <div className="welcome-content">
                         <h1>Join Brawy!</h1>
                         <p>Create your account and start building amazing web projects with our powerful editor.</p>
-                        {/* Тут можна додати інше фото або залишити той самий стиль */}
                     </div>
                 </div>
 
-                {/* ПРАВА ЧАСТИНА: Форма реєстрації */}
                 <div className="login-right">
                     <form className="login-form" onSubmit={submit}>
                         <h2>Create Account</h2>
@@ -119,7 +116,6 @@ export default function Register() {
                             <span>Already have an account? <Link to="/login">Sign In</Link></span>
                         </div>
 
-                        {/* Виведення статусів */}
                         {message && <div className="status-msg" style={{ color: '#28a745', background: '#e6ffed', padding: '10px', borderRadius: '5px', textAlign: 'center' }}>{message}</div>}
                         {error && <div className="error-msg">{error}</div>}
                     </form>
