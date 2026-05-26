@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { login, refresh } from '../api/auth';
-import { customFetch } from '../api/http';
 import type { User } from '../api/types';
 import { useAuthStore } from '../store/auth';
 import Footer from '../components/Footer';
@@ -16,19 +15,6 @@ type GoogleTokenPayload = {
   email?: string;
 };
 
-function decodeBase64UrlUtf8(value: string): string {
-  const normalizedValue = value.replace(/-/g, '+').replace(/_/g, '/');
-  const paddedValue = normalizedValue.padEnd(
-    normalizedValue.length + ((4 - (normalizedValue.length % 4)) % 4),
-    '=',
-  );
-
-  const binaryValue = atob(paddedValue);
-  const bytes = Uint8Array.from(binaryValue, (character) => character.charCodeAt(0));
-
-  return new TextDecoder('utf-8').decode(bytes);
-}
-
 function decodeGoogleToken(token: string): User | null {
   try {
     const payloadPart = token.split('.')[1];
@@ -37,7 +23,14 @@ function decodeGoogleToken(token: string): User | null {
       return null;
     }
 
-    const payload = JSON.parse(decodeBase64UrlUtf8(payloadPart)) as GoogleTokenPayload;
+    const normalizedPayload = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      '=',
+    );
+    const payloadBytes = Uint8Array.from(atob(paddedPayload), (char) => char.charCodeAt(0));
+    const payloadText = new TextDecoder('utf-8').decode(payloadBytes);
+    const payload = JSON.parse(payloadText) as GoogleTokenPayload;
     const email = payload.email ?? '';
     const login = payload.login ?? email.split('@')[0] ?? 'google-user';
 
@@ -92,30 +85,28 @@ export default function Login() {
     setAuth(fallbackUser, token);
     navigate('/home', { replace: true });
 
-    customFetch('/api/user/profile', {
-      method: 'GET',
+    fetch('/api/user/profile', {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-    }, { auth: false, retryOnUnauthorized: false })
+      credentials: 'include',
+    })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error('Unable to load user profile');
+          throw new Error('Profile request failed');
         }
 
-        const profile = (await response.json()) as User;
-        setAuth(profile, token);
+        const user = (await response.json()) as User;
+        setAuth(user, token);
       })
       .catch(() => {
-        // The redirect access token still keeps the session usable if refresh is delayed.
-      });
-
-    refresh()
-      .then((data) => {
-        setAuth(data.user, data.access_token);
-      })
-      .catch(() => {
-        // Keep the access token from the redirect when refresh-cookie is not ready.
+        refresh()
+          .then((data) => {
+            setAuth(data.user, data.access_token);
+          })
+          .catch(() => {
+            // Keep the access token from the redirect when refresh-cookie is not ready.
+          });
       });
   }, [navigate, searchParams, setAuth]);
 
