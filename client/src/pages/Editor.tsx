@@ -501,15 +501,19 @@ export default function Editor() {
 
         currentCanvasData.children = children;
 
-        const response = await customFetch('/api/export/svg', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ canvasData: currentCanvasData }),
+        // Build SVG on client side to avoid touching backend
+        const svg = buildSvgMarkup({
+            width: currentCanvasData.attrs.width || canvasWidth,
+            height: currentCanvasData.attrs.height || canvasHeight,
+            backgroundColor: currentCanvasData.attrs.backgroundColor || canvasBgColor,
+            transparentBackground: exportTransparentBackground,
+            elements: children,
         });
 
-        if (!response.ok) throw new Error('SVG export failed');
+        const fontRules = buildFontFaceRules(fonts);
+        const svgWithFonts = fontRules ? svg.replace('<defs>', `<defs>\n${fontRules}`) : svg;
 
-        const blob = await response.blob();
+        const blob = new Blob([svgWithFonts], { type: 'image/svg+xml;charset=utf-8' });
         downloadBlob(blob, `${createSafeFilename(title)}.svg`);
     };
 
@@ -634,12 +638,13 @@ export default function Editor() {
             } else if (project.canvasData) {
                 try {
                     const parsed = typeof project.canvasData === 'string' ? JSON.parse(project.canvasData) : project.canvasData;
-                    const svg = buildSvgMarkup({
-                        width: project.width || 800,
-                        height: project.height || 600,
-                        backgroundColor: parsed?.attrs?.backgroundColor || '#ffffff',
-                        elements: Array.isArray(parsed?.children) ? parsed.children : [],
-                    });
+                                const svg = buildSvgMarkup({
+                                    width: project.width || 800,
+                                    height: project.height || 600,
+                                    backgroundColor: parsed?.attrs?.backgroundColor || '#ffffff',
+                                    transparentBackground: exportTransparentBackground,
+                                    elements: Array.isArray(parsed?.children) ? parsed.children : [],
+                                });
                     const fontRules = buildFontFaceRules(fonts);
                     const svgWithFonts = fontRules ? svg.replace('<defs>', `<defs>\n${fontRules}`) : svg;
                     setPublicPreviewUrl('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgWithFonts));
