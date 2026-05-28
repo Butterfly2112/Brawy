@@ -1320,9 +1320,9 @@ export default function Editor() {
         if (!stageRef.current) return undefined;
 
         try {
-            const exportWidth = 360;
+            const exportWidth = 1600;
             const maxSide = Math.max(canvasWidth, canvasHeight);
-            const pixelRatio = Math.max(0.2, Math.min(1, exportWidth / maxSide));
+            const pixelRatio = Math.max(1, Math.min(2, exportWidth / maxSide));
 
             const stageCanvas = stageRef.current.toCanvas({
                 pixelRatio,
@@ -1343,7 +1343,7 @@ export default function Editor() {
             context.fillRect(0, 0, composedCanvas.width, composedCanvas.height);
             context.drawImage(stageCanvas, 0, 0);
 
-            return composedCanvas.toDataURL('image/jpeg', 0.82);
+            return composedCanvas.toDataURL('image/png');
         } catch (error) {
             console.warn('Failed to generate thumbnail', error);
             return undefined;
@@ -1520,6 +1520,13 @@ export default function Editor() {
     );
 
     if (isPublicView && project) {
+        const publicPreviewImageStyle = {
+            maxWidth: '94vw',
+            maxHeight: '78vh',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+            display: 'block',
+        } as const;
+
         return (
             <div className="app">
                 <Header />
@@ -1527,7 +1534,7 @@ export default function Editor() {
                     <div style={{ textAlign: 'center' }}>
                         {publicPreviewUrl ? (
                             // use img tag for both raster and svg data urls
-                            <img src={publicPreviewUrl} alt={project.title || 'Preview'} style={{ maxWidth: '90vw', maxHeight: '70vh', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }} />
+                            <img src={publicPreviewUrl} alt={project.title || 'Preview'} style={publicPreviewImageStyle} />
                         ) : (
                             <div style={{ padding: 40, border: '1px dashed #e5e7eb' }}>Preview not available</div>
                         )}
