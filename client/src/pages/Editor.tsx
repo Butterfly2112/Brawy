@@ -658,59 +658,44 @@ export default function Editor() {
         }
     }, [project, applyProjectState, user]);
 
-    const exportProjectPdf = async () => {
+    
+
+    const exportPublicAsPng = async () => {
         if (!project) return;
 
-        // Build SVG from project data and render to canvas for PDF
         try {
-            const parsed = typeof project.canvasData === 'string' ? JSON.parse(project.canvasData) : project.canvasData;
-            const svgMarkup = buildSvgMarkup({
-                width: project.width || 800,
-                height: project.height || 600,
-                backgroundColor: parsed?.attrs?.backgroundColor || '#ffffff',
-                elements: Array.isArray(parsed?.children) ? parsed.children : [],
-            });
-
-            const fontRules = buildFontFaceRules(fonts);
-            const finalSvg = fontRules ? svgMarkup.replace('<defs>', `<defs>\n${fontRules}`) : svgMarkup;
-
             const img = new Image();
-            const svgBlob = new Blob([finalSvg], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(svgBlob);
-
-            // Ensure fonts are ready before rasterizing SVG into canvas — prevents text shifts
-            if ((document as any).fonts && (document as any).fonts.ready) {
-                try {
-                    await (document as any).fonts.ready;
-                } catch (e) {
-                    // ignore font loading errors and proceed
-                }
-            }
+            img.crossOrigin = 'anonymous';
+            const src = publicPreviewUrl || '';
 
             await new Promise<void>((resolve, reject) => {
                 img.onload = () => resolve();
-                img.onerror = () => reject(new Error('Failed to load SVG image'));
-                img.src = url;
+                img.onerror = () => reject(new Error('Failed to load preview image'));
+                img.src = src;
             });
 
+            const w = project.width || canvasWidth || 800;
+            const h = project.height || canvasHeight || 600;
             const canvas = document.createElement('canvas');
-            canvas.width = project.width || 800;
-            canvas.height = project.height || 600;
+            canvas.width = w;
+            canvas.height = h;
             const ctx = canvas.getContext('2d');
             if (!ctx) throw new Error('Canvas not supported');
-            ctx.fillStyle = parsed?.attrs?.backgroundColor || '#ffffff';
+
+            // Fill background if preview is SVG without transparency
+            ctx.fillStyle = (project.canvasData && typeof project.canvasData === 'string')
+                ? (JSON.parse(project.canvasData)?.attrs?.backgroundColor || '#ffffff')
+                : (project.canvasData?.attrs?.backgroundColor || '#ffffff');
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            const dataUrl = canvas.toDataURL('image/png');
-            const orientation = (project.width || 800) >= (project.height || 600) ? 'landscape' : 'portrait';
-            const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height] });
-            pdf.addImage(dataUrl, 'PNG', 0, 0, canvas.width, canvas.height);
-            pdf.save(`${createSafeFilename(project.title || 'project')}.pdf`);
-            URL.revokeObjectURL(url);
+            const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+            if (!blob) throw new Error('Failed to render PNG');
+            downloadBlob(blob, `${createSafeFilename(project.title || 'project')}.png`);
         } catch (err) {
-            console.error('Export PDF failed', err);
-            alert('Failed to create PDF');
+            console.error('Export PNG failed', err);
+            alert('Failed to create PNG');
         }
     };
 
@@ -1543,7 +1528,7 @@ export default function Editor() {
                         )}
 
                         <div style={{ marginTop: 20 }}>
-                            <button className="button-agree" onClick={exportProjectPdf}>Download PDF</button>
+                            <button className="button-agree" onClick={exportPublicAsPng}>Download PNG</button>
                         </div>
                     </div>
                 </main>
